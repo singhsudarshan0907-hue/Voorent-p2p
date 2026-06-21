@@ -1,0 +1,883 @@
+import { useState, useEffect, useCallback } from 'react';
+import TopNav from '../components/TopNav';
+
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const ADMIN_KEY = 'voorent-admin-dev-2024';
+const headers = { 'X-Admin-Key': ADMIN_KEY, 'Content-Type': 'application/json' };
+
+type Tab = 'listings' | 'users' | 'orders' | 'invoices' | 'payouts';
+
+interface Summary {
+  totalUsers: number; totalListings: number; pendingItems: number;
+  activeItems: number; totalOrders: number; activeOrders: number;
+  totalInvoices: number; totalRevenue: number;
+}
+interface AdminListing {
+  id: string; title: string; category: string; condition: string;
+  itemPrice: number; monthlyRent: number; status: string;
+  imageUrl: string; createdAt: string; ownerPhone: string; ownerName: string;
+  pincode?: string;
+}
+interface AdminUser {
+  id: string; name: string; email: string; phone: string; role: string;
+  upiId: string; createdAt: string; rentalCount: number; listingCount: number;
+}
+interface AdminOrder {
+  id: string; status: string; planType: string; currentMonth: number;
+  totalMonths: number; monthlyAmount: number; startDate: string;
+  createdAt: string; customerName: string; customerPhone: string; listingTitle: string;
+}
+interface AdminPayout {
+  id: string; amount: number; status: string; paidAt: string | null;
+  createdAt: string; ownerName: string; ownerPhone: string; upiId: string;
+  listingTitle: string; plan: string;
+}
+
+interface AdminInvoice {
+  id: string; invoiceNumber: string; amount: number; originalAmount: number | null;
+  discountAmount: number; couponCode: string | null; notes: string | null;
+  monthNumber: number; status: string; paidAt: string | null;
+  dueDate: string | null; createdAt: string;
+  customerName: string; customerPhone: string; listingTitle: string;
+}
+interface Coupon {
+  id: string; code: string; discountType: string; discountValue: number;
+  maxUses: number | null; usedCount: number; expiresAt: string | null;
+  isActive: boolean; createdAt: string;
+}
+
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  pending:   { bg: '#FFF8E1', text: '#F59E0B' },
+  active:    { bg: '#E8F5E9', text: '#2D6A4F' },
+  rented:    { bg: '#E3F2FD', text: '#1565C0' },
+  rejected:  { bg: '#FFEBEE', text: '#C62828' },
+  sold:      { bg: '#F3F4F6', text: '#555' },
+  ACTIVE:    { bg: '#E8F5E9', text: '#2D6A4F' },
+  UPCOMING:  { bg: '#E3F2FD', text: '#1565C0' },
+  COMPLETED: { bg: '#F3F4F6', text: '#555' },
+  OVERDUE:   { bg: '#FFEBEE', text: '#D62828' },
+  CANCELLED:         { bg: '#FEE2E2', text: '#991B1B' },
+  RETURN_REQUESTED:  { bg: '#FFF3E0', text: '#E65100' },
+  paid:      { bg: '#E8F5E9', text: '#2D6A4F' },
+  overdue:   { bg: '#FFEBEE', text: '#D62828' },
+};
+
+export default function Admin() {
+  const [tab, setTab] = useState<Tab>('listings');
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [listings, setListings] = useState<AdminListing[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [invoices, setInvoices] = useState<AdminInvoice[]>([]);
+  const [payouts, setPayouts] = useState<AdminPayout[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editListing, setEditListing] = useState<AdminListing | null>(null);
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editInvoice, setEditInvoice] = useState<AdminInvoice | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState({ amount: '', paidAt: '', dueDate: '', status: '', notes: '', couponCode: '' });
+  const [couponMsg, setCouponMsg] = useState('');
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [showCoupons, setShowCoupons] = useState(false);
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountType: 'percent', discountValue: '', maxUses: '', expiresAt: '' });
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const fetchSummary = useCallback(async () => {
+    const res = await fetch(`${BASE}/admin/summary`, { headers });
+    if (res.ok) setSummary(await res.json());
+  }, []);
+
+  const fetchTab = useCallback(async (t: Tab) => {
+    setLoading(true);
+    try {
+      if (t === 'listings') {
+        const res = await fetch(`${BASE}/admin/listings${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        if (res.ok) setListings(await res.json());
+      } else if (t === 'users') {
+        const res = await fetch(`${BASE}/admin/users${search ? `?search=${search}` : ''}`, { headers });
+        if (res.ok) setUsers(await res.json());
+      } else if (t === 'orders') {
+        const res = await fetch(`${BASE}/admin/orders${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        if (res.ok) setOrders(await res.json());
+      } else if (t === 'invoices') {
+        const res = await fetch(`${BASE}/admin/invoices${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        if (res.ok) setInvoices(await res.json());
+      } else if (t === 'payouts') {
+        const res = await fetch(`${BASE}/admin/payouts${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        if (res.ok) setPayouts(await res.json());
+      }
+    } finally { setLoading(false); }
+  }, [tab, statusFilter, search]);
+
+  useEffect(() => { fetchSummary(); }, []);
+  useEffect(() => { fetchTab(tab); }, [tab, statusFilter]);
+
+  const approve = async (id: string) => {
+    await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', headers });
+    fetchTab('listings'); fetchSummary();
+  };
+  const reject = async (id: string) => {
+    await fetch(`${BASE}/admin/listings/${id}/reject`, { method: 'POST', headers, body: JSON.stringify({ reason: '' }) });
+    fetchTab('listings'); fetchSummary();
+  };
+  const cancelOrder = async (id: string) => {
+    if (!confirm('Cancel this order?')) return;
+    await fetch(`${BASE}/admin/orders/${id}/cancel`, { method: 'POST', headers });
+    fetchTab('orders'); fetchSummary();
+  };
+  const saveEditListing = async () => {
+    if (!editListing) return;
+    await fetch(`${BASE}/admin/listings/${editListing.id}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ title: editListing.title, status: editListing.status, itemPrice: editListing.itemPrice, pincode: editListing.pincode || null }),
+    });
+    setEditListing(null); fetchTab('listings');
+  };
+
+  const completeOrder = async (id: string) => {
+    if (!confirm('Mark this rental as completed? The item will be made available again.')) return;
+    await fetch(`${BASE}/admin/orders/${id}/complete`, { method: 'POST', headers });
+    fetchTab('orders'); fetchSummary();
+  };
+  const saveEditUser = async () => {
+    if (!editUser) return;
+    await fetch(`${BASE}/admin/users/${editUser.id}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ name: editUser.name, role: editUser.role }),
+    });
+    setEditUser(null); fetchTab('users');
+  };
+
+  const openEditInvoice = (inv: AdminInvoice) => {
+    setEditInvoice(inv);
+    setCouponMsg('');
+    setInvoiceForm({
+      amount: inv.amount.toString(),
+      paidAt: inv.paidAt ? inv.paidAt.slice(0, 16) : '',
+      dueDate: inv.dueDate ? inv.dueDate.slice(0, 16) : '',
+      status: inv.status,
+      notes: inv.notes || '',
+      couponCode: '',
+    });
+  };
+  const saveEditInvoice = async () => {
+    if (!editInvoice) return;
+    const body: Record<string, unknown> = {
+      status: invoiceForm.status,
+      notes: invoiceForm.notes || null,
+    };
+    const amt = parseFloat(invoiceForm.amount);
+    if (!isNaN(amt)) body.amount = amt;
+    if (invoiceForm.paidAt) body.paidAt = new Date(invoiceForm.paidAt).toISOString();
+    if (invoiceForm.dueDate) body.dueDate = new Date(invoiceForm.dueDate).toISOString();
+    await fetch(`${BASE}/admin/invoices/${editInvoice.id}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+    setEditInvoice(null); fetchTab('invoices');
+  };
+  const applyCouponToInvoice = async () => {
+    if (!editInvoice || !invoiceForm.couponCode) return;
+    const res = await fetch(`${BASE}/admin/invoices/${editInvoice.id}/apply-coupon`, {
+      method: 'POST', headers, body: JSON.stringify({ code: invoiceForm.couponCode }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setCouponMsg(`✅ Applied! Discount ₹${data.discount}, new amount ₹${data.newAmount}`);
+      fetchTab('invoices');
+    } else {
+      setCouponMsg(`❌ ${data}`);
+    }
+  };
+  const removeCouponFromInvoice = async () => {
+    if (!editInvoice) return;
+    const res = await fetch(`${BASE}/admin/invoices/${editInvoice.id}/remove-coupon`, { method: 'POST', headers });
+    if (res.ok) { setCouponMsg('✅ Coupon removed.'); fetchTab('invoices'); }
+  };
+
+  const loadCoupons = async () => {
+    const res = await fetch(`${BASE}/admin/coupons`, { headers });
+    if (res.ok) setCoupons(await res.json());
+  };
+  const createCoupon = async () => {
+    if (!newCoupon.code || !newCoupon.discountValue) return;
+    const body = {
+      code: newCoupon.code,
+      discountType: newCoupon.discountType,
+      discountValue: parseFloat(newCoupon.discountValue),
+      maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses) : null,
+      expiresAt: newCoupon.expiresAt ? new Date(newCoupon.expiresAt).toISOString() : null,
+    };
+    const res = await fetch(`${BASE}/admin/coupons`, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (res.ok) { setNewCoupon({ code: '', discountType: 'percent', discountValue: '', maxUses: '', expiresAt: '' }); loadCoupons(); }
+  };
+  const toggleCoupon = async (id: string) => {
+    await fetch(`${BASE}/admin/coupons/${id}/toggle`, { method: 'PUT', headers });
+    loadCoupons();
+  };
+
+  const toggleCouponsPanel = () => {
+    if (!showCoupons) loadCoupons();
+    setShowCoupons(v => !v);
+  };
+
+  const markPayoutPaid = async (id: string) => {
+    await fetch(`${BASE}/payouts/${id}/mark-paid`, { method: 'PUT', headers });
+    fetchTab('payouts');
+  };
+
+  const runInvoiceJob = async () => {
+    const res = await fetch(`${BASE}/admin/run-invoice-job`, { method: 'POST', headers });
+    const data = await res.json();
+    alert(data.message ?? 'Done');
+    fetchTab('invoices'); fetchSummary();
+  };
+
+  const TABS: { key: Tab; label: string; count: number }[] = [
+    { key: 'listings', label: '📦 Items',    count: summary?.totalListings ?? 0 },
+    { key: 'users',    label: '👥 Users',    count: summary?.totalUsers ?? 0 },
+    { key: 'orders',   label: '🛒 Orders',   count: summary?.totalOrders ?? 0 },
+    { key: 'invoices', label: '🧾 Invoices', count: summary?.totalInvoices ?? 0 },
+    { key: 'payouts',  label: '💰 Payouts',  count: payouts.length },
+  ];
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#F9F9F9]">
+      <TopNav />
+
+      <div className="bg-white border-b border-[#E0E0E0]">
+        <div className="max-w-7xl mx-auto px-6 pt-6 pb-0">
+          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-4">Admin Dashboard</h1>
+
+          {/* Summary stats */}
+          {summary && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Total Users',    value: summary.totalUsers,    color: '#2D6A4F' },
+                { label: 'Pending Items',  value: summary.pendingItems,  color: '#F59E0B' },
+                { label: 'Active Orders',  value: summary.activeOrders,  color: '#1565C0' },
+                { label: 'Revenue',        value: `₹${Math.round(summary.totalRevenue).toLocaleString()}`, color: '#2D6A4F' },
+              ].map(s => (
+                <div key={s.label} className="rounded-2xl bg-white border border-[#E0E0E0] p-4">
+                  <p className="text-xs text-[#999] mb-1">{s.label}</p>
+                  <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-0 border-b border-[#E0E0E0]">
+            {TABS.map(t => (
+              <button key={t.key} onClick={() => { setTab(t.key); setStatusFilter(''); setSearch(''); }}
+                className="px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap"
+                style={{ borderColor: tab === t.key ? '#2D6A4F' : 'transparent', color: tab === t.key ? '#2D6A4F' : '#999' }}>
+                {t.label} <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#555]">{t.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
+
+        {/* Filters bar */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
+          {tab === 'users' && (
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchTab('users')}
+              placeholder="Search by name or phone…"
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0', minWidth: 220 }} />
+          )}
+          {tab === 'listings' && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All statuses</option>
+              {['pending','active','rented','rejected','sold'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {tab === 'orders' && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All statuses</option>
+              {['UPCOMING','ACTIVE','COMPLETED','OVERDUE','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {tab === 'invoices' && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All statuses</option>
+              {['paid','pending','overdue'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {tab === 'payouts' && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All statuses</option>
+              {['pending','paid'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <button onClick={() => fetchTab(tab)}
+            className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+            Refresh
+          </button>
+          {tab === 'invoices' && (
+            <button onClick={runInvoiceJob}
+              className="px-4 py-2 rounded-xl text-sm font-bold border-2"
+              style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+              ⚡ Run Invoice Job
+            </button>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-[#999]">Loading…</div>
+        ) : (
+
+          /* ── ITEMS TAB ── */
+          tab === 'listings' ? (
+            <div className="space-y-3">
+              {listings.map(l => {
+                const sc = STATUS_COLORS[l.status] || { bg: '#F3F4F6', text: '#555' };
+                return (
+                  <div key={l.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 flex gap-4 items-start">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#F3F4F6] flex-shrink-0 flex items-center justify-center text-2xl">
+                      {l.imageUrl ? <img src={`http://localhost:5000${l.imageUrl}`} className="w-full h-full object-cover" alt="" /> : '📦'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="font-bold text-[#1A1A1A] leading-snug">{l.title}</p>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                          style={{ background: sc.bg, color: sc.text }}>{l.status}</span>
+                      </div>
+                      <p className="text-xs text-[#999] mb-2">{l.category} · {l.condition} · ₹{l.itemPrice.toLocaleString()} · Owner: {l.ownerName} ({l.ownerPhone})</p>
+                      <p className="text-xs text-[#999]">{new Date(l.createdAt).toLocaleDateString('en-IN')}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      {l.status === 'pending' && (<>
+                        <button onClick={() => approve(l.id)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#2D6A4F' }}>
+                          ✓ Approve
+                        </button>
+                        <button onClick={() => reject(l.id)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#D62828' }}>
+                          ✕ Reject
+                        </button>
+                      </>)}
+                      <button onClick={() => setEditListing(l)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border-2"
+                        style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                        ✏ Edit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {listings.length === 0 && <p className="text-center text-[#999] py-20">No items found</p>}
+            </div>
+
+          /* ── USERS TAB ── */
+          ) : tab === 'users' ? (
+            <div className="bg-white rounded-2xl border border-[#E0E0E0] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E0E0E0] bg-[#F9F9F9]">
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Name</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Phone</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden lg:table-cell">Email</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Role</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Rentals</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Listings</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Joined</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={u.id} className={`border-b border-[#F0F0F0] hover:bg-[#F9F9F9] ${i % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-[#1A1A1A]">{u.name || '—'}</p>
+                      </td>
+                      <td className="px-5 py-4 font-mono text-[#555]">{u.phone}</td>
+                      <td className="px-5 py-4 text-[#555] hidden lg:table-cell">{u.email || '—'}</td>
+                      <td className="px-5 py-4">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                          style={u.role === 'owner' ? { background: '#E8F5E9', color: '#2D6A4F' } : { background: '#E3F2FD', color: '#1565C0' }}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-[#555] hidden md:table-cell">{u.rentalCount}</td>
+                      <td className="px-5 py-4 text-[#555] hidden md:table-cell">{u.listingCount}</td>
+                      <td className="px-5 py-4 text-[#999] hidden md:table-cell">{new Date(u.createdAt).toLocaleDateString('en-IN')}</td>
+                      <td className="px-5 py-4">
+                        <button onClick={() => setEditUser(u)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                          style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                          ✏ Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {users.length === 0 && <p className="text-center text-[#999] py-20">No users found</p>}
+            </div>
+
+          /* ── ORDERS TAB ── */
+          ) : tab === 'orders' ? (
+            <div className="bg-white rounded-2xl border border-[#E0E0E0] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E0E0E0] bg-[#F9F9F9]">
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Order</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Customer</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Item</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Status</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Progress</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Amount</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((o, i) => {
+                    const sc = STATUS_COLORS[o.status] || { bg: '#F3F4F6', text: '#555' };
+                    return (
+                      <tr key={o.id} className={`border-b border-[#F0F0F0] hover:bg-[#F9F9F9] ${i % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}>
+                        <td className="px-5 py-4">
+                          <p className="font-mono text-xs text-[#999]">#{o.id.slice(0,8).toUpperCase()}</p>
+                          <p className="text-xs text-[#999] mt-0.5">{new Date(o.createdAt).toLocaleDateString('en-IN')}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-[#1A1A1A]">{o.customerName || '—'}</p>
+                          <p className="text-xs font-mono text-[#999]">{o.customerPhone}</p>
+                        </td>
+                        <td className="px-5 py-4 text-[#555] hidden md:table-cell max-w-[160px] truncate">{o.listingTitle}</td>
+                        <td className="px-5 py-4">
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                            style={{ background: sc.bg, color: sc.text }}>{o.status}</span>
+                        </td>
+                        <td className="px-5 py-4 text-[#555] hidden md:table-cell">
+                          {o.currentMonth}/{o.totalMonths} months
+                        </td>
+                        <td className="px-5 py-4 font-bold text-[#1A1A1A]">₹{o.monthlyAmount.toLocaleString()}/mo</td>
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            {o.status === 'RETURN_REQUESTED' && (
+                              <button onClick={() => completeOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#2D6A4F' }}>
+                                ✓ Complete
+                              </button>
+                            )}
+                            {o.status !== 'CANCELLED' && o.status !== 'COMPLETED' && o.status !== 'RETURN_REQUESTED' && (
+                              <button onClick={() => cancelOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                                style={{ borderColor: '#D62828', color: '#D62828' }}>
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {orders.length === 0 && <p className="text-center text-[#999] py-20">No orders found</p>}
+            </div>
+
+          /* ── INVOICES TAB ── */
+          ) : tab === 'invoices' ? (
+            <div className="space-y-4">
+              {/* Coupon management toggle */}
+              <div className="flex justify-end">
+                <button onClick={toggleCouponsPanel}
+                  className="px-4 py-2 rounded-xl text-sm font-bold border-2"
+                  style={{ borderColor: showCoupons ? '#2D6A4F' : '#E0E0E0', color: showCoupons ? '#2D6A4F' : '#555' }}>
+                  🏷️ {showCoupons ? 'Hide' : 'Manage'} Coupons
+                </button>
+              </div>
+
+              {/* Coupon management panel */}
+              {showCoupons && (
+                <div className="bg-white rounded-2xl border border-[#E0E0E0] p-5 space-y-4">
+                  <h3 className="font-bold text-[#1A1A1A]">Discount Coupons</h3>
+
+                  {/* Create coupon form */}
+                  <div className="bg-[#F9F9F9] rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-[#555] uppercase tracking-wide">Create New Coupon</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <input placeholder="Code e.g. SAVE10" value={newCoupon.code}
+                        onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})}
+                        className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                        style={{ borderColor: '#E0E0E0' }} />
+                      <select value={newCoupon.discountType}
+                        onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value})}
+                        className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                        style={{ borderColor: '#E0E0E0' }}>
+                        <option value="percent">% Percent</option>
+                        <option value="fixed">₹ Fixed</option>
+                      </select>
+                      <input type="number" placeholder={newCoupon.discountType === 'percent' ? 'Value e.g. 10' : 'Amount e.g. 100'}
+                        value={newCoupon.discountValue}
+                        onChange={e => setNewCoupon({...newCoupon, discountValue: e.target.value})}
+                        className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                        style={{ borderColor: '#E0E0E0' }} />
+                      <input type="number" placeholder="Max uses (optional)"
+                        value={newCoupon.maxUses}
+                        onChange={e => setNewCoupon({...newCoupon, maxUses: e.target.value})}
+                        className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                        style={{ borderColor: '#E0E0E0' }} />
+                      <input type="date" placeholder="Expires (optional)"
+                        value={newCoupon.expiresAt}
+                        onChange={e => setNewCoupon({...newCoupon, expiresAt: e.target.value})}
+                        className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                        style={{ borderColor: '#E0E0E0' }} />
+                      <button onClick={createCoupon}
+                        className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                        + Create
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Coupon list */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[#E0E0E0]">
+                          <th className="text-left py-2 px-3 font-semibold text-[#555]">Code</th>
+                          <th className="text-left py-2 px-3 font-semibold text-[#555]">Discount</th>
+                          <th className="text-left py-2 px-3 font-semibold text-[#555]">Used / Max</th>
+                          <th className="text-left py-2 px-3 font-semibold text-[#555]">Expires</th>
+                          <th className="py-2 px-3" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coupons.map(c => (
+                          <tr key={c.id} className="border-b border-[#F0F0F0]">
+                            <td className="py-3 px-3 font-mono font-bold text-[#1A1A1A]">{c.code}</td>
+                            <td className="py-3 px-3 text-[#555]">
+                              {c.discountType === 'percent' ? `${c.discountValue}%` : `₹${c.discountValue}`}
+                            </td>
+                            <td className="py-3 px-3 text-[#555]">{c.usedCount} / {c.maxUses ?? '∞'}</td>
+                            <td className="py-3 px-3 text-[#999]">
+                              {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-IN') : '—'}
+                            </td>
+                            <td className="py-3 px-3">
+                              <button onClick={() => toggleCoupon(c.id)}
+                                className="px-3 py-1 rounded-lg text-xs font-bold"
+                                style={c.isActive
+                                  ? { background: '#E8F5E9', color: '#2D6A4F' }
+                                  : { background: '#F3F4F6', color: '#999' }}>
+                                {c.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {coupons.length === 0 && (
+                          <tr><td colSpan={5} className="text-center text-[#999] py-6 text-sm">No coupons yet</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Invoice table */}
+              <div className="bg-white rounded-2xl border border-[#E0E0E0] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E0E0E0] bg-[#F9F9F9]">
+                      <th className="text-left px-5 py-3 font-semibold text-[#555]">Invoice #</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555]">Customer</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Item</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555]">Month</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555]">Amount</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555]">Status</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Date</th>
+                      <th className="px-5 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv, i) => {
+                      const ic = STATUS_COLORS[inv.status] || { bg: '#F3F4F6', text: '#555' };
+                      return (
+                        <tr key={inv.id} className={`border-b border-[#F0F0F0] hover:bg-[#F9F9F9] ${i % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}>
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-[#1A1A1A]">{inv.invoiceNumber}</p>
+                            {inv.couponCode && <p className="text-xs text-[#2D6A4F]">🏷️ {inv.couponCode} (-₹{inv.discountAmount})</p>}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-[#1A1A1A]">{inv.customerName || '—'}</p>
+                            <p className="text-xs font-mono text-[#999]">{inv.customerPhone}</p>
+                          </td>
+                          <td className="px-5 py-4 text-[#555] hidden md:table-cell max-w-[160px] truncate">{inv.listingTitle}</td>
+                          <td className="px-5 py-4 text-[#555]">{inv.monthNumber}</td>
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-[#1A1A1A]">₹{inv.amount.toLocaleString()}</p>
+                            {inv.originalAmount && inv.originalAmount !== inv.amount && (
+                              <p className="text-xs text-[#999] line-through">₹{inv.originalAmount.toLocaleString()}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                              style={{ background: ic.bg, color: ic.text }}>{inv.status}</span>
+                          </td>
+                          <td className="px-5 py-4 text-[#999] hidden md:table-cell">
+                            {new Date(inv.createdAt).toLocaleDateString('en-IN')}
+                          </td>
+                          <td className="px-5 py-4">
+                            <button onClick={() => openEditInvoice(inv)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                              style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                              ✏ Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {invoices.length === 0 && <p className="text-center text-[#999] py-20">No invoices found</p>}
+              </div>
+            </div>
+
+          /* ── PAYOUTS TAB ── */
+          ) : (
+            <div className="bg-white rounded-2xl border border-[#E0E0E0] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E0E0E0] bg-[#F9F9F9]">
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Owner</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Item</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Plan</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Amount</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">UPI</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555]">Status</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.map((p, i) => (
+                    <tr key={p.id} className={`border-b border-[#F0F0F0] hover:bg-[#F9F9F9] ${i % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-[#1A1A1A]">{p.ownerName || '—'}</p>
+                        <p className="text-xs font-mono text-[#999]">{p.ownerPhone}</p>
+                      </td>
+                      <td className="px-5 py-4 text-[#555] hidden md:table-cell max-w-[160px] truncate">{p.listingTitle}</td>
+                      <td className="px-5 py-4 text-[#555] hidden md:table-cell capitalize">{p.plan}</td>
+                      <td className="px-5 py-4 font-bold text-[#1A1A1A]">₹{p.amount.toLocaleString()}</td>
+                      <td className="px-5 py-4">
+                        {p.upiId
+                          ? <span className="font-mono text-xs text-[#2D6A4F]">{p.upiId}</span>
+                          : <span className="text-xs text-[#D62828]">Not set</span>}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                          style={p.status === 'paid'
+                            ? { background: '#E8F5E9', color: '#2D6A4F' }
+                            : { background: '#FFF9C4', color: '#F57F17' }}>
+                          {p.status === 'paid' ? '✓ Transferred' : '⏳ Pending'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {p.status === 'pending' && (
+                          <button onClick={() => markPayoutPaid(p.id)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#2D6A4F' }}>
+                            Mark Paid
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {payouts.length === 0 && <p className="text-center text-[#999] py-20">No payouts yet</p>}
+            </div>
+          )
+        )}
+      </main>
+
+      {/* Edit Listing Modal */}
+      {editListing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditListing(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-4">Edit Item</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Title</label>
+                <input value={editListing.title} onChange={e => setEditListing({...editListing, title: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Item Price (₹)</label>
+                <input type="number" value={editListing.itemPrice}
+                  onChange={e => setEditListing({...editListing, itemPrice: parseFloat(e.target.value)})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Status</label>
+                <select value={editListing.status} onChange={e => setEditListing({...editListing, status: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }}>
+                  {['pending','active','rented','rejected','sold'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Pincode (geocodes lat/lng)</label>
+                <input
+                  type="text" inputMode="numeric" maxLength={6}
+                  placeholder="e.g. 110001"
+                  value={editListing.pincode || ''}
+                  onChange={e => setEditListing({...editListing, pincode: e.target.value.replace(/\D/g,'')})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                <p className="text-xs text-[#999] mt-1">Saves lat/lng so item appears in location searches</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditListing(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2" style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                Cancel
+              </button>
+              <button onClick={saveEditListing}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditInvoice(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-1">Edit Invoice</h2>
+            <p className="text-xs font-mono text-[#999] mb-4">{editInvoice.invoiceNumber} · {editInvoice.customerName} · {editInvoice.listingTitle}</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Amount (₹)</label>
+                <input type="number" value={invoiceForm.amount}
+                  onChange={e => setInvoiceForm({...invoiceForm, amount: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                  style={{ borderColor: '#E0E0E0' }} />
+                {editInvoice.couponCode && (
+                  <p className="text-xs text-[#2D6A4F] mt-1">🏷️ Coupon applied: {editInvoice.couponCode} (−₹{editInvoice.discountAmount})</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Status</label>
+                <select value={invoiceForm.status}
+                  onChange={e => setInvoiceForm({...invoiceForm, status: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                  style={{ borderColor: '#E0E0E0' }}>
+                  {['paid','pending','overdue'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Paid At</label>
+                  <input type="datetime-local" value={invoiceForm.paidAt}
+                    onChange={e => setInvoiceForm({...invoiceForm, paidAt: e.target.value})}
+                    className="w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                    style={{ borderColor: '#E0E0E0' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Due Date</label>
+                  <input type="datetime-local" value={invoiceForm.dueDate}
+                    onChange={e => setInvoiceForm({...invoiceForm, dueDate: e.target.value})}
+                    className="w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                    style={{ borderColor: '#E0E0E0' }} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Notes</label>
+                <textarea value={invoiceForm.notes}
+                  onChange={e => setInvoiceForm({...invoiceForm, notes: e.target.value})}
+                  rows={2} placeholder="Internal notes…"
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F] resize-none"
+                  style={{ borderColor: '#E0E0E0' }} />
+              </div>
+
+              {/* Coupon section */}
+              <div className="border-t border-[#E0E0E0] pt-3">
+                <label className="text-xs font-semibold text-[#555] mb-2 block">Apply Discount Coupon</label>
+                <div className="flex gap-2">
+                  <input value={invoiceForm.couponCode}
+                    onChange={e => setInvoiceForm({...invoiceForm, couponCode: e.target.value.toUpperCase()})}
+                    placeholder="Enter coupon code"
+                    className="flex-1 border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                    style={{ borderColor: '#E0E0E0' }} />
+                  <button onClick={applyCouponToInvoice}
+                    className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                    Apply
+                  </button>
+                  {editInvoice.couponCode && (
+                    <button onClick={removeCouponFromInvoice}
+                      className="px-4 py-2 rounded-xl text-sm font-bold border-2"
+                      style={{ borderColor: '#D62828', color: '#D62828' }}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {couponMsg && <p className="text-xs mt-2" style={{ color: couponMsg.startsWith('✅') ? '#2D6A4F' : '#D62828' }}>{couponMsg}</p>}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditInvoice(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2"
+                style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                Cancel
+              </button>
+              <button onClick={saveEditInvoice}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-4">Edit User</h2>
+            <p className="text-xs font-mono text-[#999] mb-4">{editUser.phone}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Name</label>
+                <input value={editUser.name || ''} onChange={e => setEditUser({...editUser, name: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Role</label>
+                <select value={editUser.role} onChange={e => setEditUser({...editUser, role: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }}>
+                  {['customer','owner','admin'].map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditUser(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2" style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                Cancel
+              </button>
+              <button onClick={saveEditUser}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+# ── .NET Backend ─────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json
+appsettings.Production.json
+
+# ── Node / React Frontend ─────────────────────────────────────
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Secrets ───────────────────────────────────────────────────
+*.pfx
+*.key
+secrets.json

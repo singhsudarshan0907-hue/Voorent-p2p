@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: voorent_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: voorent_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./voorent-backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./voorent-backend/VoorentApi
+      dockerfile: Dockerfile
+    container_name: voorent_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=voorent_dev;Username=postgres;Password=postgres"
+      Jwt__Key: "local-dev-secret-change-in-production-32chars"
+      Jwt__Issuer: "voorent"
+    ports:
+      - "5000:5000"
+
+  frontend:
+    image: node:20-alpine
+    container_name: voorent_frontend
+    working_dir: /app
+    volumes:
+      - ./voorent-frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - api
+
+volumes:
+  pg_data:
