@@ -50,7 +50,7 @@ export default function Login() {
     if (!name.trim()) { setError('Please enter your name'); return; }
     setLoading(true); setError('');
     try {
-      await api.put('/api/users/profile', { name: name.trim(), email: email.trim() });
+      await api.put('/users/profile', { name: name.trim(), email: email.trim() });
       navigate('/');
     } catch {
       setError('Could not save profile — please try again.');

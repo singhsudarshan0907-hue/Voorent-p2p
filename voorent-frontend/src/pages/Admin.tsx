@@ -62,7 +62,31 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   overdue:   { bg: '#FFEBEE', text: '#D62828' },
 };
 
+const ADMIN_PHONE = '9503864446';
+const ADMIN_PASSWORD = 'Voorent@54321';
+
 export default function Admin() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('admin_auth') === 'true');
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleAdminLogin = () => {
+    if (loginPhone.trim() === ADMIN_PHONE && loginPassword === ADMIN_PASSWORD) {
+      localStorage.setItem('admin_auth', 'true');
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid phone number or password.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('admin_auth');
+    setIsAuthenticated(false);
+  };
+
   const [tab, setTab] = useState<Tab>('listings');
   const [summary, setSummary] = useState<Summary | null>(null);
   const [listings, setListings] = useState<AdminListing[]>([]);
@@ -238,13 +262,77 @@ export default function Admin() {
     { key: 'payouts',  label: '💰 Payouts',  count: payouts.length },
   ];
 
+  // ── Admin Login Gate ─────────────────────────────────────────────────────
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl border border-[#E0E0E0] p-8 w-full max-w-sm shadow-sm">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold" style={{ color: '#2D6A4F' }}>Voorent</h1>
+            <p className="text-sm text-[#555] mt-1">Admin Dashboard</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Phone Number</label>
+              <input
+                type="tel" inputMode="numeric" maxLength={10}
+                placeholder="10-digit mobile number"
+                value={loginPhone}
+                onChange={(e) => { setLoginPhone(e.target.value.replace(/\D/g, '')); setLoginError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                className="w-full border-2 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2D6A4F] transition-colors"
+                style={{ borderColor: loginError ? '#D62828' : '#E0E0E0' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter password"
+                  value={loginPassword}
+                  onChange={(e) => { setLoginPassword(e.target.value); setLoginError(''); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                  className="w-full border-2 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2D6A4F] transition-colors pr-12"
+                  style={{ borderColor: loginError ? '#D62828' : '#E0E0E0' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] text-xs font-semibold"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {loginError && <p className="text-xs text-[#D62828]">{loginError}</p>}
+
+            <button
+              onClick={handleAdminLogin}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm mt-2"
+              style={{ background: '#2D6A4F' }}
+            >
+              Login →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[#F9F9F9]">
       <TopNav />
 
       <div className="bg-white border-b border-[#E0E0E0]">
         <div className="max-w-7xl mx-auto px-6 pt-6 pb-0">
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-4">Admin Dashboard</h1>
+          <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Admin Dashboard</h1>
+          <button onClick={handleAdminLogout} className="text-sm font-semibold text-[#D62828] hover:opacity-80">Logout</button>
+          </div>
 
           {/* Summary stats */}
           {summary && (
