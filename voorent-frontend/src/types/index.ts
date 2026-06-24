@@ -33,7 +33,7 @@ export interface Rental {
   listingImage: string;
   condition: string;
   monthlyRent: number;
-  status: 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'OVERDUE';
+  status: 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'OVERDUE' | 'RETURN_REQUESTED';
   startDate: string;
   endDate?: string;
   currentMonth: number;

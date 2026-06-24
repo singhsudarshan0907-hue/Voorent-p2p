@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import { getListingById } from '../services/api';
 import { useRazorpay } from '../hooks/useRazorpay';
+import { isDelhibNCRPincode } from '../utils/pincodes';
 import type { Listing, PlanType } from '../types';
 
 export default function ConfirmRental() {
@@ -35,6 +36,8 @@ export default function ConfirmRental() {
     </div>
   );
   if (!item) return <div className="p-4 text-center text-red-600">Item not found.</div>;
+
+  const isServiceable = !item.pincode || isDelhibNCRPincode(item.pincode);
 
   const monthly      = item.monthlyRent;
   const upfront12    = item.monthlyRent * 12;
@@ -157,13 +160,23 @@ export default function ConfirmRental() {
                 </p>
               </div>
 
+                      {!isServiceable && (
+                <div className="p-4 rounded-xl mb-4 flex gap-3" style={{ background: '#FFF3F3', border: '1px solid #FBBCBC' }}>
+                  <span className="text-lg flex-shrink-0">📍</span>
+                  <div>
+                    <p className="text-sm font-bold text-[#D62828] mb-0.5">Not serviceable in your area</p>
+                    <p className="text-xs text-[#555]">We currently deliver only within Delhi NCR. This item's pincode is outside our service area.</p>
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
                   <p className="text-xs text-red-600">{error} — please try again.</p>
                 </div>
               )}
 
-              <button onClick={handlePay} disabled={paying}
+              <button onClick={handlePay} disabled={paying || !isServiceable}
                 className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-base mb-3 disabled:opacity-60 hover:opacity-90 transition-opacity"
                 style={{ background: '#F4A261' }}>
                 {paying ? 'Opening payment…' : `Pay ₹${firstPayment.toLocaleString()} & confirm →`}

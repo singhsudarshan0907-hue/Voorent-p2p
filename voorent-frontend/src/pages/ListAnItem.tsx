@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import axios from 'axios';
+import { isDelhibNCRPincode } from '../utils/pincodes';
 
 type Category  = 'Furniture' | 'Appliances';
 type Condition = 'Like New' | 'Good' | 'Acceptable';
@@ -53,6 +54,7 @@ export default function ListAnItem() {
       if (!form.description.trim() || form.description.length < 20) e.description = 'Description must be at least 20 characters.';
       if (!form.condition) e.condition = 'Please select a condition.';
       if (!form.pincode || !/^\d{6}$/.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode.';
+      else if (!isDelhibNCRPincode(form.pincode)) e.pincode = 'Sorry, we are not serviceable in your area. We currently serve Delhi NCR only.';
     }
     if (step === 2) {
       if (!price || price < 500) e.itemPrice = 'Item value must be at least ₹500.';

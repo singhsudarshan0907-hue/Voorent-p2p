@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import StarRating from '../components/StarRating';
 import { getListingById, getReviews, contactVoorent } from '../services/api';
+import { isDelhibNCRPincode } from '../utils/pincodes';
 import type { Listing, Review, PlanType } from '../types';
 
 export default function ProductDetails() {
@@ -37,6 +38,7 @@ export default function ProductDetails() {
   const monthly   = item.monthlyRent;
   const upfront12 = item.monthlyRent * 12;
   const images    = item.images?.length ? item.images : [item.imageUrl];
+  const isServiceable = !item.pincode || isDelhibNCRPincode(item.pincode);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F9F9F9]">
@@ -176,10 +178,22 @@ export default function ProductDetails() {
               </p>
             </div>
 
+            {/* Not serviceable banner */}
+            {!isServiceable && (
+              <div className="p-4 rounded-2xl mb-5 flex gap-3" style={{ background: '#FFF3F3', border: '1px solid #FBBCBC' }}>
+                <span className="text-lg flex-shrink-0">📍</span>
+                <div>
+                  <p className="text-sm font-bold text-[#D62828] mb-0.5">Not serviceable in your area</p>
+                  <p className="text-xs text-[#555]">We currently deliver only within Delhi NCR. This item is listed outside our service area.</p>
+                </div>
+              </div>
+            )}
+
             {/* CTA */}
             <button
               onClick={() => navigate(`/checkout/${item.id}?plan=${plan}`)}
-              className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-lg mb-3 transition-opacity hover:opacity-90"
+              disabled={!isServiceable}
+              className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-lg mb-3 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: '#F4A261' }}
             >
               Rent this item →

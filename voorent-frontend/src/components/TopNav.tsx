@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { isOwner } from '../utils/auth';
 
 export default function TopNav() {
   const navigate = useNavigate();
@@ -29,6 +28,14 @@ export default function TopNav() {
         <button onClick={() => navigate('/')} className="text-2xl font-bold flex-shrink-0" style={{ color: '#2D6A4F' }}>
           Voorent
         </button>
+
+        {/* City badge */}
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border flex-shrink-0" style={{ borderColor: '#2D6A4F', background: '#F0FAF5' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 10c0 6-8 13-8 13S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span className="text-xs font-semibold" style={{ color: '#2D6A4F' }}>Delhi NCR</span>
+        </div>
 
         {/* Search bar — desktop */}
         <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm relative">

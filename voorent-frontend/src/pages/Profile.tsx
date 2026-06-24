@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getMyRentals } from '../services/api';
-import { isOwner } from '../utils/auth';
+
 import type { Rental } from '../types/index';
 
 const STATUS_CONFIG = {
