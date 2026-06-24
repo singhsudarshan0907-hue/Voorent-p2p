@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VoorentApi.Data;
 using VoorentApi.Models;
+using VoorentApi.Services;
 
 namespace VoorentApi.Controllers;
 
