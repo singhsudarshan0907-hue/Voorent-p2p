@@ -8,12 +8,13 @@ using System.Security.Claims;
 using System.Text;
 using VoorentApi.Data;
 using VoorentApi.Models;
+using VoorentApi.Services;
 
 namespace VoorentApi.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AppDbContext db, IConfiguration config, IHttpClientFactory http) : ControllerBase
+public class AuthController(AppDbContext db, IConfiguration config, IHttpClientFactory http, EmailService email) : ControllerBase
 {
     [HttpPost("send-otp")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
@@ -166,7 +167,13 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         // Upsert user
         var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
         var isNewUser = user == null;
-        if (user == null) { user = new User { Phone = req.Phone }; db.Users.Add(user); }
+        if (user == null)
+        {
+            user = new User { Phone = req.Phone };
+            if (!string.IsNullOrWhiteSpace(req.Email))
+                user.Email = req.Email.Trim().ToLowerInvariant();
+            db.Users.Add(user);
+        }
 
         // Auto-upgrade role: if user has listings but JWT still says "customer", fix it
         if (user.Role == "customer")
@@ -180,6 +187,10 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         }
 
         await db.SaveChangesAsync();
+
+        // Send welcome email to new users who provided email during OTP step
+        if (isNewUser && !string.IsNullOrEmpty(user.Email))
+            _ = email.WelcomeAsync(user.Email, user.Name ?? "");
 
         // isNewUser = true means frontend should show profile step (name + email)
         // isNewUser = false for returning users who already have name saved
@@ -209,4 +220,4 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
 }
 
 public record SendOtpRequest(string Phone, string? Email);
-public record VerifyOtpRequest(string Phone, string Otp);
+public record VerifyOtpRequest(string Phone, string Otp, string? Email);

@@ -19,8 +19,8 @@ api.interceptors.request.use((config) => {
 export const sendOtp = (phone: string, email?: string) =>
   api.post('/auth/send-otp', { phone, email });
 
-export const verifyOtp = (phone: string, otp: string) =>
-  api.post<{ token: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp });
+export const verifyOtp = (phone: string, otp: string, email?: string) =>
+  api.post<{ token: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp, email });
 
 // Image URL helper — images are stored on the backend server, not the frontend
 const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';

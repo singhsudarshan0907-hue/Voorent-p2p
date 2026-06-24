@@ -38,7 +38,7 @@ export default function Login() {
     if (code.length !== 6) { setError('Enter the 6-digit OTP'); return; }
     setLoading(true); setError('');
     try {
-      const res = await verifyOtp(phone, code);
+      const res = await verifyOtp(phone, code, email.trim() || undefined);
       localStorage.setItem('token', res.data.token);
       if (res.data.isNewUser) {
         setStep('profile');
