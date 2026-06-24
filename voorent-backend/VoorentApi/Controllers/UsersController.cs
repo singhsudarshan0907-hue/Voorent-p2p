@@ -27,7 +27,7 @@ public class UsersController(AppDbContext db, EmailService email) : ControllerBa
         var user = await db.Users.FindAsync(userId);
         if (user == null) return NotFound();
 
-        var isFirstEmailSave = string.IsNullOrEmpty(user.Email) && !string.IsNullOrWhiteSpace(req.Email);
+        var isFirstProfileCompletion = string.IsNullOrEmpty(user.Name) && !string.IsNullOrWhiteSpace(req.Name);
 
         if (!string.IsNullOrWhiteSpace(req.Name))  user.Name  = req.Name.Trim();
         if (!string.IsNullOrWhiteSpace(req.Email)) user.Email = req.Email.Trim().ToLowerInvariant();
@@ -35,8 +35,8 @@ public class UsersController(AppDbContext db, EmailService email) : ControllerBa
 
         await db.SaveChangesAsync();
 
-        // Send welcome email the first time a user sets their email
-        if (isFirstEmailSave && !string.IsNullOrEmpty(user.Email))
+        // Send welcome email when name is set for the first time and user has an email
+        if (isFirstProfileCompletion && !string.IsNullOrEmpty(user.Email))
             _ = email.WelcomeAsync(user.Email, user.Name ?? "");
 
         return Ok(new { message = "Profile saved.", user.Name, user.Email });

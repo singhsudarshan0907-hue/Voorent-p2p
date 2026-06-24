@@ -52,6 +52,8 @@ export default function Login() {
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { setError('Please enter your name'); return; }
+    if (!email.trim()) { setError('Please enter your email address'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address'); return; }
     setLoading(true); setError('');
     try {
       await api.put('/users/profile', { name: name.trim(), email: email.trim() });
@@ -124,7 +126,7 @@ export default function Login() {
                 <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Welcome to Voorent</h1>
                 <p className="text-[#555] mb-8">Enter your mobile number to continue</p>
 
-                <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Mobile Number</label>
+                <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Mobile Number <span className="text-[#D62828]">*</span></label>
                 <div className="flex items-center border-2 rounded-xl overflow-hidden mb-2 focus-within:border-[#2D6A4F] transition-colors"
                   style={{ borderColor: error ? '#D62828' : '#E0E0E0' }}>
                   <span className="px-4 text-sm font-semibold text-[#555] border-r border-[#E0E0E0] py-4 bg-[#F9F9F9]">+91</span>
@@ -250,7 +252,7 @@ export default function Login() {
 
                   <div>
                     <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">
-                      Email Address <span className="text-[#999] font-normal">(optional)</span>
+                      Email Address <span className="text-[#D62828]">*</span>
                     </label>
                     <input
                       type="email"
