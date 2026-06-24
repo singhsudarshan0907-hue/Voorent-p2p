@@ -46,7 +46,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
         var displayName = string.IsNullOrWhiteSpace(ownerName) ? "there" : ownerName;
         return SendAsync(
             to:      toEmail,
-            subject: $"Your listing "{listingTitle}" is under review",
+            subject: $"Your listing \"{listingTitle}\" is under review",
             body:    ListingSubmittedBody(displayName, listingTitle)
         );
     }
