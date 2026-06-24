@@ -42,23 +42,27 @@ const FAQS: FAQSection[] = [
     items: [
       {
         q: 'How do I rent an item?',
-        a: 'Browse listings, select an item you like, choose a plan (monthly or upfront), and complete payment via Razorpay. Voorent will then schedule delivery at your convenience.',
+        a: 'Browse listings, select an item, and complete payment via Razorpay. All rentals require advance payment for 12 months — either as a lump sum or via a 12-month no-cost EMI on your credit card. Voorent will schedule delivery once payment is confirmed.',
       },
       {
-        q: 'What payment plans are available?',
-        a: 'You can choose between:\n• Monthly EMI — pay each month, auto-debited on the same date.\n• Upfront (12 months) — pay for the full year at a time.\nAfter completing all 24 monthly payments on the Rent-to-Own plan, ownership of the item transfers to you at no extra cost.',
+        q: 'What payment options are available?',
+        a: 'There are two options only — no monthly billing:\n• 12-Month Advance — pay for the full first 12 months upfront via any Razorpay-supported mode.\n• 12-Month No-Cost EMI — available only if you have a credit card that supports no-cost EMI. 12 instalments are auto-debited at zero interest.\n\nThere is no option to pay month-to-month on Voorent P2P.',
+      },
+      {
+        q: 'Is there a minimum lock-in period?',
+        a: 'Yes — 12 months. If you return the item before 12 months for any reason, the full 12-month rental amount is still payable. No partial refund is given for early returns within the lock-in period.',
       },
       {
         q: 'Do I need to pay a security deposit?',
-        a: 'No security deposit is required on Voorent P2P. However, Voorent may require one month\'s advance rental at the time of booking. This advance is refundable if you cancel at least 2 days before the scheduled delivery.',
+        a: 'A security deposit may be charged depending on several factors, including your KYC status, the asset category (e.g., high-value appliances), the lock-in period, and other risk-related considerations. If applicable, the deposit amount will be communicated before you confirm the booking. The deposit is refundable at the end of the rental, subject to satisfactory return of the item.',
       },
       {
-        q: 'Can I cancel my rental?',
-        a: 'You can cancel before delivery for a full refund of any advance paid, provided you cancel at least 2 days before the estimated delivery date. Post-delivery cancellations are subject to the lock-in period and applicable charges.',
+        q: 'Can I cancel my rental before delivery?',
+        a: 'You can cancel before delivery for a full refund of any advance paid, provided you cancel at least 2 days before the estimated delivery date. After delivery, the 12-month lock-in applies and the full amount is non-refundable.',
       },
       {
-        q: 'What happens after 24 months?',
-        a: 'If you have chosen the Rent-to-Own plan and completed all 24 monthly payments, ownership of the item is legally transferred to you at no extra cost — no hidden fees.',
+        q: 'What happens after 24 months on the Rent-to-Own plan?',
+        a: 'If you complete all 24 payments across 24 months — first 12 months paid at start, second 12 months paid in the 11th month — ownership of the item transfers to you at no extra cost. No balloon payment, no hidden fees.\n\nNote: If any payment is missed, delayed, or reversed, Voorent may cancel the rent-to-own benefit at its discretion. The rental may continue but ownership will not transfer.',
       },
       {
         q: 'What if I receive a broken or non-working item?',
@@ -135,12 +139,16 @@ const FAQS: FAQSection[] = [
     icon: '💳',
     items: [
       {
-        q: 'How is billing handled?',
-        a: 'Voorent follows a uniform monthly billing cycle from the 1st of every month. If your rental starts mid-month, a pro-rata charge applies for that month. Rent is due by the 7th of each month.',
+        q: 'How does payment work on Voorent P2P?',
+        a: 'All rentals require advance payment for 12 months. You can pay the full 12-month amount upfront, or opt for a 12-month no-cost EMI if you have a credit card that supports it. There is no monthly billing option.',
       },
       {
-        q: 'What happens if I miss a payment?',
-        a: 'A 2% per month interest is charged from the date of default. If payment is missed for 2 consecutive months, Voorent may terminate the rental agreement and repossess the item without further notice.',
+        q: 'What happens with the Rent-to-Own second payment?',
+        a: 'In the first week of your 11th rental month, you\'ll need to pay for the next 12 months (months 13-24). This can again be paid as a 12-month advance or via a 12-month no-cost credit card EMI. Voorent will remind you in advance.',
+      },
+      {
+        q: 'What if I stop or delay payments on a Rent-to-Own plan?',
+        a: 'Punctual payment is required for the rent-to-own benefit to apply. If any payment is missed, late, or reversed at any point during the 24-month period, Voorent reserves the right to cancel the rent-to-own arrangement. The rental may continue but ownership will not transfer, and no refund of prior payments will be issued.',
       },
       {
         q: 'Are my card details stored?',
@@ -180,7 +188,7 @@ const FAQS: FAQSection[] = [
       },
       {
         q: 'What if I want to end my rental early?',
-        a: 'Early termination before the lock-in period ends may attract applicable charges. Contact support@voorent.com to discuss your options.',
+        a: 'There is a mandatory 12-month lock-in on all Voorent P2P rentals. If you return the item before 12 months, the full 12-month rental amount is still payable — no partial refund is given. You may return the item early, but your financial obligation for the full lock-in period remains.',
       },
       {
         q: 'Who do I contact for complaints or support?',

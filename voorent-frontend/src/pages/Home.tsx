@@ -33,11 +33,11 @@ const TESTIMONIALS = [
 ];
 
 const FAQS = [
-  { q: 'How does rent-to-own work?', a: 'You pay a fixed monthly amount for 24 months. After completing all payments, ownership of the item legally transfers to you at no extra cost — no balloon payment, no hidden fees.' },
-  { q: 'What if I want to return the item early?', a: 'You can return the item anytime before 24 months with no penalty. We\'ll arrange pickup and stop your payments immediately.' },
+  { q: 'How does rent-to-own work?', a: 'Pay for 12 months upfront (or via no-cost credit card EMI), then pay for the next 12 months in month 11. After completing all 24 payments on time, ownership transfers to you at no extra cost — no hidden fees.' },
+  { q: 'What if I want to return the item early?', a: 'All rentals have a 12-month lock-in. You can return the item early, but the full 12-month rental amount is still payable. No partial refund is given within the lock-in period.' },
   { q: 'How do I list my own items?', a: 'Click "List an Item", upload photos, set your item price, and submit. Our team reviews and approves listings within 24 hours. We handle delivery and payments on your behalf.' },
-  { q: 'Is there a security deposit?', a: 'No. Voorent does not charge any security deposit. Your first monthly payment is all you need to get started.' },
-  { q: 'Which cities does Voorent operate in?', a: 'We currently serve Bangalore, Pune, Hyderabad, and Chennai. We\'re expanding to Mumbai and Delhi by Q3 2026.' },
+  { q: 'Is there a security deposit?', a: 'A security deposit may be charged depending on your KYC status, the item category, lock-in period, and other factors. If applicable, it will be communicated before you confirm your booking and is refundable at the end of the rental.' },
+  { q: 'Where does Voorent P2P operate?', a: 'We currently serve Delhi NCR exclusively — covering Delhi, Noida, Greater Noida, Ghaziabad, Gurugram, and Faridabad. Items outside these pincodes are not serviceable at this time.' },
 ];
 
 const CATEGORIES = [

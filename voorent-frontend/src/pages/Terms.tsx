@@ -128,28 +128,52 @@ The user agrees to pay for any damage, destruction, loss, alteration, or modific
   },
   {
     title: '12. Payment Policies',
-    body: `• Voorent shall charge one month's advance at the time of initial subscription. This amount is refundable if the user cancels two days prior to the estimated delivery date. If the user has accepted delivery, the deposit shall not be refunded.
-• Voorent follows a uniform monthly billing cycle starting from the 1st of every month. Pro-rata rental applies if subscription begins after the 1st.
-• Rental is payable by the 7th of every month. Failure to pay by the 7th attracts interest of 2% per month from the date of default.
-• Non-payment of rental for two consecutive months shall attract termination of services.
-• In case of cheque dishonour, an additional charge of ₹500 shall be levied. If the pending payment is not realised within 15 days, Voorent shall initiate criminal proceedings under the Negotiable Instruments Act, 1881.
-• All payments on Voorent are processed securely via Razorpay. Voorent does not store card, bank, or UPI details.`,
+    body: `Voorent P2P operates exclusively on an advance payment model. There is no monthly billing option on this platform.
+
+Payment Options:
+Customers must pay for 12 months in advance at the time of booking. Payment may be made via one of the following two methods only:
+• 12-Month Advance Payment — full payment for 12 months is collected upfront via any supported payment mode on Razorpay.
+• 12-Month No-Cost EMI — available only for customers paying via a credit card that supports no-cost EMI. In this case, 12 monthly instalments are auto-debited from the credit card at zero additional interest. This is a credit card EMI facility and is not a monthly rental arrangement.
+
+There is no option to pay month-to-month. If a customer is unable to use either of the above methods, they will not be able to complete a booking.
+
+Minimum Lock-In — 12 Months:
+All rentals on Voorent P2P carry a minimum lock-in period of 12 months. If a customer returns the item before the completion of 12 months for any reason, the full 12-month rental amount remains payable and non-refundable. No partial refund or adjustment is offered for early returns within the lock-in period. Voorent may revise this policy to offer different lock-in tiers in the future, but only the terms communicated at the time of booking shall apply to that order.
+
+All payments are processed securely via Razorpay. Voorent does not store any card, bank account, or UPI details.`,
   },
   {
-    title: '13. Advance Rental Payment',
-    body: `Voorent may require advance rental payment instead of monthly billing in any of the following situations:
-• Issuance of a new or replacement item
-• Unresolved KYC or documentation concerns
-• Limited inventory availability
-• Special discounts or promotional offers availed by the customer
-• Any other operational, credit-related, or business reason at Voorent's sole discretion
+    title: '13. Security Deposit',
+    body: `Voorent may, at its sole discretion, require a refundable security deposit in addition to the advance rental payment. Whether a deposit is required, and the amount thereof, depends on one or more of the following factors:
+• KYC status and completeness of the customer's verification
+• Asset category (e.g., high-value appliances may attract a higher deposit)
+• Lock-in period selected or applicable to the order
+• Rental value and duration
+• Customer rental history on the platform
+• Any other risk-related or operational factor at Voorent's discretion
 
-Monthly payment is not a guaranteed option. If Voorent requires advance payment, the customer cannot revert to monthly billing unless Voorent expressly permits it in writing.
-
-Customers who voluntarily wish to pay in advance may request to do so at the time of booking, subject to Voorent's approval. Advance payment is non-refundable for the period already covered, except as per Voorent's standard refund policy.`,
+The security deposit, if charged, will be communicated to the customer prior to completion of the booking. The deposit is refundable at the end of the rental period, subject to satisfactory return of the item in the agreed condition, and after deduction of any applicable dues, damages, or outstanding charges.`,
   },
   {
-    title: '14. Default in Payment',
+    title: '14. Rent-to-Own Payment Schedule',
+    body: `For customers on the Rent-to-Own plan, ownership of the item transfers to the customer after 24 successful monthly payments made in full and on time across 24 months. The payment schedule is structured as follows:
+
+First 12 Months:
+Payment for the first 12 months is collected in full at the time of booking, either as a lump-sum advance or via a 12-month no-cost EMI on a credit card, as described in Section 12.
+
+Second 12 Months:
+During the first week of the 11th month of the rental, the customer must make payment for the next 12 months (months 13 through 24). This payment must again be made either as a lump-sum advance or via a 12-month no-cost EMI on a credit card. Voorent will notify the customer in advance.
+
+If the second payment is not received by the end of the 11th month:
+• Voorent reserves the right to terminate the rent-to-own arrangement.
+• The rental may continue at Voorent's discretion, but the rent-to-own benefit (i.e., ownership transfer at month 24) will be forfeited.
+• No refund of prior payments will be issued.
+
+Conditions for Ownership Transfer:
+Ownership transfers to the customer only upon completion of all 24 payments in 24 months, without default, delay, or dispute. Any missed, late, or reversed payment within the 24-month period gives Voorent the right to cancel the rent-to-own benefit at its sole discretion. Customers who lose their rent-to-own benefit will not be entitled to a refund of the payments already made.`,
+  },
+  {
+    title: '15. Default in Payment',
     body: `• Agreement termination: Voorent may immediately terminate the rental agreement if payment is overdue by 2 or more months.
 • Asset repossession: Voorent has the right to pick up all rented items from the customer's premises upon default — without further notice or consent.
 • Right of property entry: Upon a payment default of 2+ months, Voorent's authorised team may enter the customer's premises to inspect and recover rented assets. The customer consents to this right at the time of booking.
@@ -157,7 +181,7 @@ Customers who voluntarily wish to pay in advance may request to do so at the tim
 • Legal action: Voorent reserves the right to initiate civil and/or criminal proceedings for non-payment, wrongful retention of assets, or any breach of the rental agreement.`,
   },
   {
-    title: '15. Repossession of Assets',
+    title: '16. Repossession of Assets',
     body: `All rented items remain the exclusive property of Voorent Pvt. Ltd. and/or the respective seller at all times. The customer has a limited right to use — not own — the items, unless all rent-to-own payments have been completed.
 
 • Voorent can reclaim rented assets without a court order upon payment default or breach of agreement.
@@ -165,21 +189,21 @@ Customers who voluntarily wish to pay in advance may request to do so at the tim
 • Recovery of assets does not absolve the customer of any outstanding rental, penalty, or associated dues.`,
   },
   {
-    title: '16. Promo Codes, Coupons & Discounts',
+    title: '17. Promo Codes, Coupons & Discounts',
     body: `• Modify or cancel anytime: Voorent reserves the right to withdraw, change, or cancel any promotional offer at any time, without prior notice.
 • No retroactive pricing: Discounts are locked at the time of transaction. Existing orders will not be repriced based on any new or lower offer.
 • New promotions apply to new orders only: Any fresh offer launched by Voorent is valid strictly for new bookings and does not apply to ongoing or past transactions.
 • Discount decisions are at Voorent's sole discretion: Voorent determines who is eligible for a discount, the applicable rate, and the duration — this is non-negotiable.`,
   },
   {
-    title: '17. Voorent\'s Sole Discretion',
+    title: '18. Voorent\'s Sole Discretion',
     body: `• Item allocation: Voorent determines which specific product, brand, or variant is delivered. Images on the platform are representative; actual items may vary within the same or equivalent category.
 • Right to refuse service: Voorent reserves the right to decline any rental or listing request at its sole discretion, without being required to provide a reason.
 • Pricing & offers: All rental rates, packages, and promotional offers are set by Voorent and are subject to change at any time without prior notice.
 • Content moderation: Voorent reserves the right to refuse, edit, modify, or remove any listing or content at its sole discretion.`,
   },
   {
-    title: '18. Legal Rights & Intellectual Property',
+    title: '19. Legal Rights & Intellectual Property',
     body: `You acknowledge and agree that the materials on the Website — including text, software, scripts, graphics, photos, sounds, music, videos, interactive features ("Materials") and the trademarks, service marks and logos contained therein ("Marks") — are owned by or licensed to Voorent, and are subject to copyright and other intellectual property rights under Indian laws, foreign laws and international treaties.
 
 Materials are provided to you AS IS for personal use only and may not be used, copied, reproduced, distributed, transmitted, broadcast, displayed, sold, or licensed for any other purpose without prior written consent of the respective owners.
@@ -187,7 +211,7 @@ Materials are provided to you AS IS for personal use only and may not be used, c
 You agree not to circumvent, disable or otherwise interfere with security-related features of the Website. You may not decompile or disassemble, reverse engineer, or otherwise attempt to discover any source code contained in the Service. You agree not to reproduce, duplicate, copy, sell, resell or exploit for any commercial purposes any aspect of the Service.`,
   },
   {
-    title: '19. Trademarks',
+    title: '20. Trademarks',
     body: `All logos, brands, trademarks and service marks ("Marks") appearing on Voorent are the properties either owned or used under license by Voorent and/or its associates. All rights accruing from the same, statutory or otherwise, wholly vest with Voorent and/or its associates.
 
 Access to this Website does not confer upon you any license or right to use these Marks in any form or manner whatsoever. Any violation constitutes an offence under the prevailing laws of India.
@@ -195,13 +219,13 @@ Access to this Website does not confer upon you any license or right to use thes
 Voorent respects the Intellectual Property Rights of all parties. In a case where a user is found to be using any platform to infringe the Intellectual Property Rights of others, Voorent will be free to terminate this agreement forthwith without notice.`,
   },
   {
-    title: '20. Claims of Infringement',
+    title: '21. Claims of Infringement',
     body: `Voorent is not liable for any infringement of copyright arising out of materials posted on or transmitted through the site. If you are an owner of intellectual property rights and believe that any Content infringes upon your intellectual property rights, you may submit a notification to Voorent together with a request to delete the relevant Content.
 
 The notification must contain: a physical or electronic signature of the authorized person; identification of the infringing content; contact information; a good faith statement that the use is not authorized; and a statement of accuracy under penalty of perjury.`,
   },
   {
-    title: '21. Fair Use & Prohibited Activities',
+    title: '22. Fair Use & Prohibited Activities',
     body: `The following are strictly prohibited:
 • Use of "deep-link", "page-scrape", "robot", "spider" or other automatic devices to access or copy any portion of the Website.
 • Testing the vulnerability of the website or any networked computer resource.
@@ -212,7 +236,7 @@ The notification must contain: a physical or electronic signature of the authori
 • Using the Website for any purpose that is unlawful or prohibited by these Terms.`,
   },
   {
-    title: '22. Indemnity',
+    title: '23. Indemnity',
     body: `You agree to defend, indemnify and hold harmless Voorent, its officers, subsidiaries, affiliates, successors, assigns, directors, agents, service providers, suppliers and employees from and against any and all claims, damages, obligations, losses, liabilities, costs or debt, and expenses (including attorneys' fees) arising from:
 • Your use of and access to the Website and/or the Service
 • Your violation of any term of these Terms
@@ -222,19 +246,19 @@ The notification must contain: a physical or electronic signature of the authori
 This indemnification obligation will survive termination, modification or expiration of these Terms.`,
   },
   {
-    title: '23. Limitation of Liability',
+    title: '24. Limitation of Liability',
     body: `To the maximum extent permitted by applicable law, Voorent shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, goodwill, or other intangible losses arising from your use of the Service.
 
 Voorent's total liability in any matter shall not exceed the total rental amount paid by you in the 3 months preceding the claim.`,
   },
   {
-    title: '24. Governing Law & Dispute Resolution',
+    title: '25. Governing Law & Dispute Resolution',
     body: `These Terms shall be governed by and construed in accordance with the laws of India. Any dispute arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts in New Delhi, India.
 
 Voorent encourages users to reach out at support@voorent.com for any disputes before initiating legal proceedings.`,
   },
   {
-    title: '25. Changes to Terms',
+    title: '26. Changes to Terms',
     body: `Voorent reserves the right to modify these Terms at any time. Any material change shall become effective on the lapse of five days following the aforesaid change. Your continued use of the Service after any changes constitutes acceptance of the updated Terms.
 
 Last updated: June 2026`,
