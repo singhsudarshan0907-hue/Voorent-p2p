@@ -16,8 +16,8 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const sendOtp = (phone: string) =>
-  api.post('/auth/send-otp', { phone });
+export const sendOtp = (phone: string, email?: string) =>
+  api.post('/auth/send-otp', { phone, email });
 
 export const verifyOtp = (phone: string, otp: string) =>
   api.post<{ token: string }>('/auth/verify-otp', { phone, otp });

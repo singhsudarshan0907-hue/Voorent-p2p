@@ -19,9 +19,12 @@ export default function Login() {
 
   const handleSendOtp = async () => {
     if (phone.length !== 10) { setError('Enter a valid 10-digit number'); return; }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address'); return;
+    }
     setLoading(true); setError('');
     try {
-      await sendOtp(phone);
+      await sendOtp(phone, email.trim() || undefined);
       setStep('otp');
       startResendTimer();
     } catch {
@@ -133,6 +136,20 @@ export default function Login() {
                     className="flex-1 px-4 py-4 text-sm outline-none bg-transparent"
                   />
                 </div>
+                {error && !email.trim() && <p className="text-xs text-[#D62828] mb-2">{error}</p>}
+
+                <label className="block text-sm font-semibold text-[#1A1A1A] mb-2 mt-4">
+                  Email Address <span className="text-[#999] font-normal">(optional — get OTP on email too)</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. you@gmail.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                  className="w-full px-4 py-4 border-2 rounded-xl text-sm outline-none focus:border-[#2D6A4F] transition-colors mb-2"
+                  style={{ borderColor: error && email.trim() ? '#D62828' : '#E0E0E0' }}
+                />
                 {error && <p className="text-xs text-[#D62828] mb-2">{error}</p>}
 
                 <button onClick={handleSendOtp} disabled={loading}

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using VoorentApi.Data;
@@ -103,6 +105,43 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
             Console.WriteLine($"[DEV] OTP for {req.Phone}: {code}");
         }
 
+        // Send OTP via email if provided
+        if (!string.IsNullOrWhiteSpace(req.Email))
+        {
+            try
+            {
+                var smtpHost     = config["Smtp:Host"];
+                var smtpPort     = int.Parse(config["Smtp:Port"] ?? "587");
+                var smtpUser     = config["Smtp:Username"];
+                var smtpPass     = config["Smtp:Password"];
+                var smtpFrom     = config["Smtp:From"] ?? smtpUser;
+
+                if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUser))
+                {
+                    using var client2 = new SmtpClient(smtpHost, smtpPort)
+                    {
+                        EnableSsl   = true,
+                        Credentials = new NetworkCredential(smtpUser, smtpPass)
+                    };
+                    var mail = new MailMessage
+                    {
+                        From       = new MailAddress(smtpFrom!, "Voorent"),
+                        Subject    = $"Your Voorent OTP is {code}",
+                        Body       = $"Hello,\n\nYour Voorent login OTP is: {code}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\n— Team Voorent",
+                        IsBodyHtml = false
+                    };
+                    mail.To.Add(req.Email);
+                    await client2.SendMailAsync(mail);
+                    Console.WriteLine($"[Email] OTP sent to {req.Email}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Email] Failed to send OTP email: {ex.Message}");
+                // Don't fail the request — WhatsApp OTP already sent
+            }
+        }
+
         return Ok(new { message = "OTP sent." });
     }
 
@@ -168,5 +207,5 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
     }
 }
 
-public record SendOtpRequest(string Phone);
+public record SendOtpRequest(string Phone, string? Email);
 public record VerifyOtpRequest(string Phone, string Otp);
