@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using VoorentApi.Data;
 using VoorentApi.Services;
@@ -9,7 +11,7 @@ namespace VoorentApi.Controllers;
 [ApiController]
 [Route("api/users")]
 [Authorize]
-public class UsersController(AppDbContext db, EmailService email) : ControllerBase
+public class UsersController(AppDbContext db, EmailService email, IConfiguration config) : ControllerBase
 {
     [HttpGet("me")]
     public async Task<IActionResult> GetMe()
@@ -35,12 +37,46 @@ public class UsersController(AppDbContext db, EmailService email) : ControllerBa
 
         await db.SaveChangesAsync();
 
-        // Send welcome email when name is set for the first time and user has an email
+        // Send welcome email — same inline pattern as OTP email
         Console.WriteLine($"[Welcome] profile: isFirst={isFirstProfileCompletion}, email={user.Email ?? "null"}");
         if (isFirstProfileCompletion && !string.IsNullOrEmpty(user.Email))
         {
-            Console.WriteLine($"[Welcome] Calling WelcomeAsync for {user.Email}");
-            _ = email.WelcomeAsync(user.Email, user.Name ?? "");
+            Console.WriteLine($"[Welcome] Sending inline welcome email to {user.Email}");
+            try
+            {
+                var smtpHost = config["Smtp:Host"];
+                var smtpPort = int.Parse(config["Smtp:Port"] ?? "587");
+                var smtpUser = config["Smtp:Username"];
+                var smtpPass = config["Smtp:Password"];
+                var smtpFrom = config["Smtp:From"] ?? smtpUser;
+                if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUser))
+                {
+                    using var client = new SmtpClient(smtpHost, smtpPort)
+                    {
+                        EnableSsl = true,
+                        UseDefaultCredentials = false,
+                        Credentials = new NetworkCredential(smtpUser, smtpPass)
+                    };
+                    var mail = new MailMessage
+                    {
+                        From = new MailAddress(smtpFrom!, "Voorent"),
+                        Subject = "Welcome to Voorent P2P!",
+                        Body = $"Hi {user.Name},\n\nWelcome to Voorent P2P — Delhi NCR's managed marketplace for second-hand furniture and appliances.\n\nBrowse listings at https://p2p.voorent.com/browse\n\n— Team Voorent",
+                        IsBodyHtml = false
+                    };
+                    mail.To.Add(user.Email);
+                    await client.SendMailAsync(mail);
+                    Console.WriteLine($"[Welcome] Email sent to {user.Email}");
+                }
+                else
+                {
+                    Console.WriteLine("[Welcome] SMTP not configured");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Welcome] Failed: {ex.Message}");
+            }
         }
 
         return Ok(new { message = "Profile saved.", user.Name, user.Email });
