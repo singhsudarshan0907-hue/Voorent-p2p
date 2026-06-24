@@ -12,6 +12,7 @@ import Admin from './pages/Admin'
 import WriteReview from './pages/WriteReview'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import FAQ from './pages/FAQ'
 import InvoicePage from './pages/InvoicePage'
 import './index.css'
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="/item/:id/review" element={<WriteReview />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/faq" element={<FAQ />} />
         <Route path="/invoice/:id" element={<InvoicePage />} />
       </Routes>
     </BrowserRouter>
