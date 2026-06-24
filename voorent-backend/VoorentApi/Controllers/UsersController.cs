@@ -36,8 +36,12 @@ public class UsersController(AppDbContext db, EmailService email) : ControllerBa
         await db.SaveChangesAsync();
 
         // Send welcome email when name is set for the first time and user has an email
+        Console.WriteLine($"[Welcome] profile: isFirst={isFirstProfileCompletion}, email={user.Email ?? "null"}");
         if (isFirstProfileCompletion && !string.IsNullOrEmpty(user.Email))
+        {
+            Console.WriteLine($"[Welcome] Calling WelcomeAsync for {user.Email}");
             _ = email.WelcomeAsync(user.Email, user.Name ?? "");
+        }
 
         return Ok(new { message = "Profile saved.", user.Name, user.Email });
     }

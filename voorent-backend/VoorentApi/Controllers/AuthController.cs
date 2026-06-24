@@ -189,8 +189,12 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         await db.SaveChangesAsync();
 
         // Send welcome email to new users who provided email during OTP step
+        Console.WriteLine($"[Welcome] verify-otp: isNewUser={isNewUser}, email={user.Email ?? "null"}");
         if (isNewUser && !string.IsNullOrEmpty(user.Email))
+        {
+            Console.WriteLine($"[Welcome] Calling WelcomeAsync for {user.Email}");
             _ = email.WelcomeAsync(user.Email, user.Name ?? "");
+        }
 
         // isNewUser = true means frontend should show profile step (name + email)
         // isNewUser = false for returning users who already have name saved
