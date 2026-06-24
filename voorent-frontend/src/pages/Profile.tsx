@@ -6,11 +6,12 @@ import { getMyRentals } from '../services/api';
 
 import type { Rental } from '../types/index';
 
-const STATUS_CONFIG = {
-  ACTIVE:    { label: 'Active',    bg: '#E8F5E9', color: '#2D6A4F' },
-  UPCOMING:  { label: 'Upcoming',  bg: '#FFF8E1', color: '#F59E0B' },
-  COMPLETED: { label: 'Completed', bg: '#F5F5F5', color: '#777' },
-  OVERDUE:   { label: 'Overdue',   bg: '#FFEBEE', color: '#D62828' },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  ACTIVE:           { label: 'Active',           bg: '#E8F5E9', color: '#2D6A4F' },
+  UPCOMING:         { label: 'Upcoming',         bg: '#FFF8E1', color: '#F59E0B' },
+  COMPLETED:        { label: 'Completed',        bg: '#F5F5F5', color: '#777' },
+  OVERDUE:          { label: 'Overdue',          bg: '#FFEBEE', color: '#D62828' },
+  RETURN_REQUESTED: { label: 'Return Requested', bg: '#FFF3E0', color: '#E65100' },
 };
 
 export default function Profile() {
