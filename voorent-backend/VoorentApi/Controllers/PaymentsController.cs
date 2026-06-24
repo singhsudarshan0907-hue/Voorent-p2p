@@ -14,7 +14,7 @@ namespace VoorentApi.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-public class PaymentsController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp) : ControllerBase
+public class PaymentsController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp, EmailService email) : ControllerBase
 {
     // ── Create Razorpay Order ────────────────────────────────────
     // Called just before opening the Razorpay checkout popup
@@ -132,11 +132,21 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
         await CreateRentalFromPaymentAsync(payment);
         await db.SaveChangesAsync();
 
-        // Notify renter via WhatsApp (fire-and-forget)
+        // Notify renter via WhatsApp + email (fire-and-forget)
         var customer = await db.Users.FindAsync(payment.CustomerId);
         var listing  = await db.Listings.FindAsync(payment.ListingId);
         if (customer != null && listing != null)
+        {
             _ = whatsApp.PaymentConfirmedAsync(customer.Phone, customer.Name ?? "there", listing.Title, payment.RazorpayOrderId);
+            if (!string.IsNullOrEmpty(customer.Email))
+                _ = email.OrderConfirmedAsync(
+                    customer.Email,
+                    customer.Name ?? "",
+                    listing.Title,
+                    payment.RazorpayOrderId,
+                    payment.AmountPaise / 100m,
+                    payment.Plan);
+        }
 
         return Ok(new { message = "Payment successful", rentalId = payment.RentalId });
     }
@@ -197,7 +207,17 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
             var customer = await db.Users.FindAsync(payment.CustomerId);
             var listing  = await db.Listings.FindAsync(payment.ListingId);
             if (customer != null && listing != null)
+            {
                 _ = whatsApp.PaymentConfirmedAsync(customer.Phone, customer.Name ?? "there", listing.Title, orderId);
+                if (!string.IsNullOrEmpty(customer.Email))
+                    _ = email.OrderConfirmedAsync(
+                        customer.Email,
+                        customer.Name ?? "",
+                        listing.Title,
+                        orderId,
+                        payment.AmountPaise / 100m,
+                        payment.Plan);
+            }
         }
 
         if (@event == "payment.failed")

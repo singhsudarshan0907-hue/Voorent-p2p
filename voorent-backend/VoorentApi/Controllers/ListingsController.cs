@@ -13,7 +13,7 @@ namespace VoorentApi.Controllers;
 
 [ApiController]
 [Route("api/listings")]
-public class ListingsController(AppDbContext db, IWebHostEnvironment env, IConfiguration config) : ControllerBase
+public class ListingsController(AppDbContext db, IWebHostEnvironment env, IConfiguration config, EmailService email) : ControllerBase
 {
     // ── Public browse ────────────────────────────────────────────────────────
     [HttpGet]
@@ -221,6 +221,10 @@ public class ListingsController(AppDbContext db, IWebHostEnvironment env, IConfi
             await db.SaveChangesAsync();
             freshToken = GenerateJwt(owner);
         }
+
+        // Notify seller via email (fire-and-forget)
+        if (owner != null && !string.IsNullOrEmpty(owner.Email))
+            _ = email.ListingSubmittedAsync(owner.Email, owner.Name ?? "", listing.Title);
 
         // Reload with images for the response
         await db.Entry(listing).Collection(l => l.Images).LoadAsync();

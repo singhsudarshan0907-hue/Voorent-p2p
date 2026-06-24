@@ -31,6 +31,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddHttpClient(); // for MSG91 calls
 builder.Services.AddScoped<WhatsAppService>();
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddHostedService<InvoiceGenerationService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

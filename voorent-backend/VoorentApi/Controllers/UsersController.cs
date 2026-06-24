@@ -8,7 +8,7 @@ namespace VoorentApi.Controllers;
 [ApiController]
 [Route("api/users")]
 [Authorize]
-public class UsersController(AppDbContext db) : ControllerBase
+public class UsersController(AppDbContext db, EmailService email) : ControllerBase
 {
     [HttpGet("me")]
     public async Task<IActionResult> GetMe()
@@ -26,11 +26,18 @@ public class UsersController(AppDbContext db) : ControllerBase
         var user = await db.Users.FindAsync(userId);
         if (user == null) return NotFound();
 
+        var isFirstProfileSave = string.IsNullOrEmpty(user.Name) && !string.IsNullOrWhiteSpace(req.Name);
+
         if (!string.IsNullOrWhiteSpace(req.Name))  user.Name  = req.Name.Trim();
         if (!string.IsNullOrWhiteSpace(req.Email)) user.Email = req.Email.Trim().ToLowerInvariant();
         user.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
+
+        // Send welcome email on first-ever profile save (new user)
+        if (isFirstProfileSave && !string.IsNullOrEmpty(user.Email))
+            _ = email.WelcomeAsync(user.Email, user.Name ?? "");
+
         return Ok(new { message = "Profile saved.", user.Name, user.Email });
     }
 

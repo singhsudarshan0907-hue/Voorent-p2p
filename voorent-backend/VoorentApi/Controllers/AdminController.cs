@@ -12,7 +12,7 @@ namespace VoorentApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-public class AdminController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp) : ControllerBase
+public class AdminController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp, EmailService email) : ControllerBase
 {
     private bool IsAdmin() =>
         Request.Headers.TryGetValue("X-Admin-Key", out var key) &&
@@ -95,9 +95,13 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
         listing.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        // Notify owner via WhatsApp (fire-and-forget, never throws)
+        // Notify owner via WhatsApp + email (fire-and-forget, never throws)
         if (listing.Owner != null)
+        {
             _ = whatsApp.ListingApprovedAsync(listing.Owner.Phone, listing.Owner.Name ?? "there", listing.Title);
+            if (!string.IsNullOrEmpty(listing.Owner.Email))
+                _ = email.ListingApprovedAsync(listing.Owner.Email, listing.Owner.Name ?? "", listing.Title);
+        }
 
         return Ok(new { message = "Listing approved and now live.", id });
     }
