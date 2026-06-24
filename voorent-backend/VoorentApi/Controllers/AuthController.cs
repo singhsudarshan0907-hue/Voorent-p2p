@@ -188,12 +188,43 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
 
         await db.SaveChangesAsync();
 
-        // Send welcome email to new users who provided email during OTP step
+        // Send welcome email inline (same pattern as OTP email) — fires immediately on first login
         Console.WriteLine($"[Welcome] verify-otp: isNewUser={isNewUser}, email={user.Email ?? "null"}");
         if (isNewUser && !string.IsNullOrEmpty(user.Email))
         {
-            Console.WriteLine($"[Welcome] Calling WelcomeAsync for {user.Email}");
-            _ = email.WelcomeAsync(user.Email, user.Name ?? "");
+            Console.WriteLine($"[Welcome] Sending inline welcome email to {user.Email}");
+            try
+            {
+                var smtpHost = config["Smtp:Host"];
+                var smtpPort = int.Parse(config["Smtp:Port"] ?? "587");
+                var smtpUser = config["Smtp:Username"];
+                var smtpPass = config["Smtp:Password"];
+                var smtpFrom = config["Smtp:From"] ?? smtpUser;
+                if (!string.IsNullOrEmpty(smtpHost) && !string.IsNullOrEmpty(smtpUser))
+                {
+                    using var client = new SmtpClient(smtpHost, smtpPort)
+                    {
+                        EnableSsl = true,
+                        UseDefaultCredentials = false,
+                        Credentials = new NetworkCredential(smtpUser, smtpPass)
+                    };
+                    var mail = new MailMessage
+                    {
+                        From = new MailAddress(smtpFrom!, "Voorent"),
+                        Subject = "Welcome to Voorent P2P!",
+                        Body = $"Hi,\n\nWelcome to Voorent P2P — Delhi NCR's managed marketplace for second-hand furniture and appliances.\n\nBrowse listings at https://p2p.voorent.com/browse\n\n— Team Voorent",
+                        IsBodyHtml = false
+                    };
+                    mail.To.Add(user.Email);
+                    await client.SendMailAsync(mail);
+                    Console.WriteLine($"[Welcome] Email sent to {user.Email}");
+                }
+                else Console.WriteLine("[Welcome] SMTP not configured");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Welcome] Failed: {ex.Message}");
+            }
         }
 
         // isNewUser = true means frontend should show profile step (name + email)
