@@ -20,7 +20,7 @@ const FAQS: FAQSection[] = [
     items: [
       {
         q: 'What is Voorent P2P?',
-        a: 'Voorent P2P is a managed peer-to-peer marketplace where individuals can rent out their second-hand furniture and appliances to renters in Delhi NCR. Unlike traditional rentals, every item is verified by Voorent — we handle pickup, delivery, KYC, and payment so you don't have to.',
+        a: 'Voorent P2P is a managed peer-to-peer marketplace where individuals can rent out their second-hand furniture and appliances to renters in Delhi NCR. Unlike traditional rentals, every item is verified by Voorent — we handle pickup, delivery, KYC, and payment so you don\'t have to.',
       },
       {
         q: 'Where does Voorent P2P operate?',
@@ -84,7 +84,7 @@ const FAQS: FAQSection[] = [
       },
       {
         q: 'Can Voorent change my listed price?',
-        a: 'Yes, Voorent reviews all pricing before publishing. If your quoted price is significantly above market rate, Voorent will inform you of a suggested revised price and seek your approval. Your listing will not go live at a price you haven't agreed to.',
+        a: 'Yes, Voorent reviews all pricing before publishing. If your quoted price is significantly above market rate, Voorent will inform you of a suggested revised price and seek your approval. Your listing will not go live at a price you haven\'t agreed to.',
       },
       {
         q: 'Who handles delivery and pickup?',
