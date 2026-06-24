@@ -19,7 +19,8 @@ export default function Login() {
 
   const handleSendOtp = async () => {
     if (phone.length !== 10) { setError('Enter a valid 10-digit number'); return; }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!email.trim()) { setError('Email address is required'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError('Enter a valid email address'); return;
     }
     setLoading(true); setError('');
@@ -139,11 +140,11 @@ export default function Login() {
                 {error && !email.trim() && <p className="text-xs text-[#D62828] mb-2">{error}</p>}
 
                 <label className="block text-sm font-semibold text-[#1A1A1A] mb-2 mt-4">
-                  Email Address <span className="text-[#999] font-normal">(optional — get OTP on email too)</span>
+                  Email Address <span className="text-[#D62828]">*</span>
                 </label>
                 <input
                   type="email"
-                  placeholder="e.g. you@gmail.com"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
