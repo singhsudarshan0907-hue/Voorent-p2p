@@ -432,11 +432,20 @@ export default function Home() {
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="border-t border-[#E0E0E0] py-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between gap-6 text-sm text-[#999]">
-          <div>
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between gap-8 text-sm text-[#999]">
+
+          {/* Brand + About */}
+          <div className="max-w-xs">
             <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>Voorent</p>
-            <p>India's trusted rent-to-own marketplace</p>
+            <p className="mb-3">A new initiative by Voorent Pvt. Ltd.</p>
+            <div className="text-xs leading-relaxed space-y-0.5">
+              <p className="font-semibold text-[#555]">About the Founders</p>
+              <p>Prasoon Sharma &amp; Sudarshan Singh</p>
+              <p>Alumni of NIT Durgapur</p>
+              <p>Started Voorent in 2016</p>
+            </div>
           </div>
+
           <div className="flex gap-10">
             <div className="flex flex-col gap-2">
               <p className="font-semibold text-[#1A1A1A] mb-1">Browse</p>
@@ -447,10 +456,16 @@ export default function Home() {
               <p className="font-semibold text-[#1A1A1A] mb-1">Legal</p>
               <button onClick={() => navigate('/terms')} className="text-left hover:text-[#2D6A4F]">Terms of Service</button>
               <button onClick={() => navigate('/privacy')} className="text-left hover:text-[#2D6A4F]">Privacy Policy</button>
-              <a href="mailto:support@voorent.com" className="hover:text-[#2D6A4F]">Contact Us</a>
+              <button onClick={() => navigate('/faq')} className="text-left hover:text-[#2D6A4F]">FAQ</button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="font-semibold text-[#1A1A1A] mb-1">Contact Us</p>
+              <a href="mailto:support@voorent.com" className="hover:text-[#2D6A4F]">support@voorent.com</a>
+              <a href="tel:+919318297171" className="hover:text-[#2D6A4F]">+91 93182 97171</a>
             </div>
           </div>
-          <p className="text-xs self-end">© 2026 Voorent. All rights reserved.</p>
+
+          <p className="text-xs self-end">© 2026 Voorent Pvt. Ltd. · All rights reserved.</p>
         </div>
       </footer>
 
