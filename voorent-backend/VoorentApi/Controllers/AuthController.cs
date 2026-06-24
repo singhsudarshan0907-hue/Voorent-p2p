@@ -120,8 +120,9 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
                 {
                     using var client2 = new SmtpClient(smtpHost, smtpPort)
                     {
-                        EnableSsl   = true,
-                        Credentials = new NetworkCredential(smtpUser, smtpPass)
+                        EnableSsl            = true,
+                        UseDefaultCredentials = false,
+                        Credentials          = new NetworkCredential(smtpUser, smtpPass)
                     };
                     var mail = new MailMessage
                     {

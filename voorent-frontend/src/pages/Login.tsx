@@ -179,7 +179,7 @@ export default function Login() {
                   ← Back
                 </button>
                 <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Enter OTP</h1>
-                <p className="text-[#555] mb-8">We sent a 6-digit code to +91-XXXXXX{phone.slice(-4)}</p>
+                <p className="text-[#555] mb-8">We sent a 6-digit code to +91-XXXXXX{phone.slice(-4)}{email.trim() ? ` and ${email.trim()}` : ''}</p>
 
                 <div className="flex gap-3 justify-center mb-4">
                   {otp.map((digit, i) => (
