@@ -274,10 +274,6 @@ export default function Login() {
                   {loading ? 'Saving…' : 'Start Exploring →'}
                 </button>
 
-                <button onClick={() => navigate('/')}
-                  className="w-full text-center text-sm text-[#999] mt-4 hover:text-[#555] transition-colors">
-                  Skip for now
-                </button>
               </>
             )}
 
