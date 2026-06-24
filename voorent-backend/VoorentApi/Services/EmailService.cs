@@ -68,7 +68,8 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
     {
         if (string.IsNullOrEmpty(_host) || string.IsNullOrEmpty(_user))
         {
-            logger.LogWarning("[Email] SMTP not configured — skipping email to {To}", to);
+            Console.WriteLine($"[Email] SMTP not configured — skipping email to {to}");
+        logger.LogWarning("[Email] SMTP not configured — skipping email to {To}", to);
             return;
         }
 
@@ -91,6 +92,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
             mail.To.Add(to);
 
             await client.SendMailAsync(mail);
+            Console.WriteLine($"[Email] Sent '{subject}' to {to}");
             logger.LogInformation("[Email] Sent '{Subject}' to {To}", subject, to);
         }
         catch (Exception ex)
