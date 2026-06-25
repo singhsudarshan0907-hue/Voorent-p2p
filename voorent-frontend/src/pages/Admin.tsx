@@ -432,7 +432,7 @@ export default function Admin() {
                 return (
                   <div key={l.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 flex gap-4 items-start">
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#F3F4F6] flex-shrink-0 flex items-center justify-center text-2xl">
-                      {l.imageUrl ? <img src={`http://localhost:5000${l.imageUrl}`} className="w-full h-full object-cover" alt="" /> : '📦'}
+                      {l.imageUrl ? <img src={l.imageUrl.startsWith('http') ? l.imageUrl : `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${l.imageUrl}`} className="w-full h-full object-cover" alt="" /> : '📦'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
