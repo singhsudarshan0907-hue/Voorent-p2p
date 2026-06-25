@@ -4,7 +4,7 @@ import TopNav from '../components/TopNav';
 import axios from 'axios';
 import { isDelhibNCRPincode } from '../utils/pincodes';
 
-type Category  = 'Furniture' | 'Appliances';
+type Category  = 'Furniture' | 'Appliances' | 'Electronics';
 type Condition = 'Like New' | 'Good' | 'Acceptable';
 type Pricing   = 'consignment' | 'buyout';
 
@@ -55,6 +55,12 @@ export default function ListAnItem() {
       if (!form.condition) e.condition = 'Please select a condition.';
       if (!form.pincode || !/^\d{6}$/.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode.';
       else if (!isDelhibNCRPincode(form.pincode)) e.pincode = 'Sorry, we are not serviceable in your area. We currently serve Delhi NCR only.';
+    }
+    if (step === 1) {
+      if (photos.filter(Boolean).length === 0) e.photos = 'Please upload at least 1 photo.';
+    }
+    if (step === 3) {
+      if (!docs.purchaseBill && !docs.panCard && !docs.aadhaar) e.docs = 'Please upload at least 1 document.';
     }
     if (step === 2) {
       if (!price || price < 500) e.itemPrice = 'Item value must be at least ₹500.';
@@ -230,12 +236,12 @@ export default function ListAnItem() {
                 <div className="space-y-5">
                   <div>
                     <p className="text-xs font-bold text-[#999] tracking-widest mb-2">CATEGORY</p>
-                    <div className="flex gap-3">
-                      {(['Furniture', 'Appliances'] as Category[]).map((c) => (
+                    <div className="flex gap-3 flex-wrap">
+                      {(['Furniture', 'Appliances', 'Electronics'] as Category[]).map((c) => (
                         <button key={c} onClick={() => setForm((f) => ({ ...f, category: c }))}
                           className="px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all"
                           style={{ borderColor: form.category === c ? '#2D6A4F' : '#E0E0E0', background: form.category === c ? '#F0FAF5' : '#fff', color: form.category === c ? '#2D6A4F' : '#555' }}>
-                          {c === 'Furniture' ? '🛋️' : '🔌'} {c}
+                          {c === 'Furniture' ? '🛋️' : c === 'Appliances' ? '🔌' : '📱'} {c}
                         </button>
                       ))}
                     </div>
@@ -334,6 +340,7 @@ export default function ListAnItem() {
                     ))}
                   </div>
                   <p className="text-xs text-[#999] mt-4 text-center">Min 1 photo · Max 8 · JPG/PNG up to 10MB each</p>
+                  {errors.photos && <p className="text-xs text-[#D62828] mt-2 text-center font-semibold">{errors.photos}</p>}
                 </div>
               )}
 
@@ -454,6 +461,7 @@ export default function ListAnItem() {
                       </label>
                     );
                   })}
+                  {errors.docs && <p className="text-xs text-[#D62828] font-semibold">{errors.docs}</p>}
                   <div className="p-4 rounded-xl flex items-start gap-3 bg-[#F9F9F9] border border-[#E0E0E0]">
                     <span>🔒</span>
                     <p className="text-sm text-[#555]">Your documents are never shared with renters. Used only for identity verification to keep the marketplace safe.</p>

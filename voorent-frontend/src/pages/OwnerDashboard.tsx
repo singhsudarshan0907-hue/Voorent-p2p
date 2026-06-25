@@ -215,7 +215,7 @@ export default function OwnerDashboard() {
                     <div className="relative" style={{ aspectRatio: '16/9' }}>
                       {item.imageUrl ? (
                         <img
-                          src={item.imageUrl.startsWith('http') ? item.imageUrl : `http://localhost:5000${item.imageUrl}`}
+                          src={item.imageUrl.startsWith('http') ? item.imageUrl : `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${item.imageUrl}`}
                           alt={item.title}
                           className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -274,7 +274,14 @@ export default function OwnerDashboard() {
                       )}
 
                       <button
-                        onClick={() => contactVoorent(`Owner query for listing: ${item.title} (ID: ${item.id})`)}
+                        onClick={async () => {
+                          try {
+                            await contactVoorent(`Owner query for listing: ${item.title} (ID: ${item.id})`);
+                            alert('✅ Message sent! Voorent support will reach out on WhatsApp shortly.');
+                          } catch {
+                            alert('Failed to send — please try again or WhatsApp us at +91 93182 97171.');
+                          }
+                        }}
                         className="w-full text-xs font-semibold py-2 rounded-xl border-2 transition-colors hover:bg-[#F0FAF5]"
                         style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
                         Contact Voorent
