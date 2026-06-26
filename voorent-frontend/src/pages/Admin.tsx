@@ -107,6 +107,21 @@ export default function Admin() {
   const [newCoupon, setNewCoupon] = useState({ code: '', discountType: 'percent', discountValue: '', maxUses: '', expiresAt: '' });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [filesModal, setFilesModal] = useState<{ id: string; title: string; photos: string[]; docs: { name: string; url: string; ext: string }[] } | null>(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+
+  const BACKEND = BASE.replace('/api', '');
+
+  const openFiles = async (l: AdminListing) => {
+    setFilesLoading(true);
+    setFilesModal({ id: l.id, title: l.title, photos: [], docs: [] });
+    try {
+      const res = await fetch(`${BASE}/admin/listings/${l.id}/files`, { headers });
+      const data = await res.json();
+      setFilesModal({ id: l.id, title: l.title, photos: data.photos || [], docs: data.docs || [] });
+    } catch { alert('Failed to load files.'); setFilesModal(null); }
+    finally { setFilesLoading(false); }
+  };
 
   const fetchSummary = useCallback(async () => {
     const res = await fetch(`${BASE}/admin/summary`, { headers });
@@ -456,10 +471,10 @@ export default function Admin() {
                           ✕ Reject
                         </button>
                       </>)}
-                      <button onClick={() => navigate(`/item/${l.id}`)}
+                      <button onClick={() => openFiles(l)}
                         className="px-4 py-2 rounded-xl text-xs font-bold border-2"
                         style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
-                        👁 View
+                        📁 Files
                       </button>
                       <button onClick={() => setEditListing(l)}
                         className="px-4 py-2 rounded-xl text-xs font-bold border-2"
@@ -935,6 +950,82 @@ export default function Admin() {
                 Save changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Files Modal */}
+      {filesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setFilesModal(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-bold text-lg">Uploaded Files</h2>
+                <p className="text-xs text-[#888] mt-0.5">{filesModal.title}</p>
+              </div>
+              <button onClick={() => setFilesModal(null)} className="text-[#888] hover:text-[#333] text-2xl leading-none">&times;</button>
+            </div>
+
+            {filesLoading ? (
+              <div className="text-center py-10 text-[#888]">Loading files…</div>
+            ) : (
+              <>
+                {/* Photos */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-[#2D6A4F] mb-3">📸 Photos ({filesModal.photos.length})</h3>
+                  {filesModal.photos.length === 0 ? (
+                    <p className="text-sm text-[#888]">No photos uploaded.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {filesModal.photos.map((url, i) => (
+                        <a key={i} href={BACKEND + url} target="_blank" rel="noreferrer">
+                          <img
+                            src={BACKEND + url}
+                            alt={`Photo ${i + 1}`}
+                            className="w-full h-36 object-cover rounded-xl border border-[#E0E0E0] hover:opacity-80 transition-opacity"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Documents */}
+                <div>
+                  <h3 className="text-sm font-bold text-[#2D6A4F] mb-3">📄 Documents ({filesModal.docs.length})</h3>
+                  {filesModal.docs.length === 0 ? (
+                    <p className="text-sm text-[#888]">No documents uploaded.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {filesModal.docs.map((doc, i) => {
+                        const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(doc.ext);
+                        return (
+                          <div key={i} className="flex items-center gap-3 border border-[#E0E0E0] rounded-xl p-3">
+                            {isImage ? (
+                              <img src={BACKEND + doc.url} alt={doc.name} className="w-16 h-16 object-cover rounded-lg border border-[#E0E0E0]" />
+                            ) : (
+                              <div className="w-16 h-16 flex items-center justify-center bg-[#F3F4F6] rounded-lg text-2xl">
+                                {doc.ext === '.pdf' ? '📕' : '📄'}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold capitalize text-[#222]">{doc.name}</p>
+                              <p className="text-xs text-[#888]">{doc.ext.replace('.', '').toUpperCase()}</p>
+                            </div>
+                            <a href={BACKEND + doc.url} target="_blank" rel="noreferrer" download
+                              className="px-4 py-2 rounded-xl text-xs font-bold border-2 whitespace-nowrap"
+                              style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+                              ⬇ Download
+                            </a>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

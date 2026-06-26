@@ -153,6 +153,35 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
         return Ok(new { message = "Listing updated.", id, lat = listing.Latitude, lng = listing.Longitude });
     }
 
+    // ── GET listing files (photos + docs) for admin ──────────────────────────
+    [HttpGet("listings/{id:guid}/files")]
+    public async Task<IActionResult> GetListingFiles(Guid id, [FromServices] IWebHostEnvironment env)
+    {
+        if (!IsAdmin()) return Unauthorized("Admin key required.");
+        var listing = await db.Listings.Include(l => l.Images).FirstOrDefaultAsync(l => l.Id == id);
+        if (listing == null) return NotFound();
+
+        var photos = listing.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList();
+
+        // Scan docs folder on disk
+        var docsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),
+            "uploads", "listings", id.ToString(), "docs");
+
+        var docs = new List<object>();
+        if (Directory.Exists(docsFolder))
+        {
+            foreach (var file in Directory.GetFiles(docsFolder))
+            {
+                var name = Path.GetFileNameWithoutExtension(file).Replace("_", " ");
+                var url  = $"/uploads/listings/{id}/docs/{Path.GetFileName(file)}";
+                docs.Add(new { name, url, ext = Path.GetExtension(file).ToLower() });
+            }
+        }
+
+        return Ok(new { photos, docs, title = listing.Title });
+    }
+
     // ── GET all users ─────────────────────────────────────────────────────────
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers([FromQuery] string? search)
