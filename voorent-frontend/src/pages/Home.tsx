@@ -42,7 +42,7 @@ const FAQS = [
 
 const CATEGORIES = [
   { label: 'Furniture',  emoji: '🛋️', desc: 'Sofas, beds, tables & more' },
-  { label: 'Appliances', emoji: '🔌', desc: 'AC, fridge, washing machine' },
+  { label: 'Appliances', emoji: '🧊', desc: 'AC, fridge, washing machine' },
 ];
 
 const SkeletonCard = () => (
@@ -296,7 +296,7 @@ export default function Home() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-[#F0FAF5] text-4xl">
-                          {item.category === 'Appliances' ? '🔌' : '🛋️'}
+                          {item.category === 'Appliances' ? '🧊' : '🛋️'}
                         </div>
                       )}
                       {item.isRentToOwn && (
