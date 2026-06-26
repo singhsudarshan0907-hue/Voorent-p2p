@@ -10,6 +10,7 @@ export interface Listing {
   monthlyRent: number;
   isRentToOwn: boolean;
   isAvailable: boolean;
+  ownerId?: string;
   ownerName?: string;
   averageRating?: number;
   reviewCount?: number;

@@ -202,7 +202,14 @@ export default function ProductDetails() {
 
             {/* Contact */}
             <button
-              onClick={() => contactVoorent(`Regarding listing: ${item.title} (ID: ${item.id})`)}
+              onClick={async () => {
+                try {
+                  await contactVoorent(`Regarding listing: ${item.title} (ID: ${item.id})`);
+                  alert('✅ Message sent! Our team will reach out on WhatsApp shortly.');
+                } catch {
+                  alert('Failed to send — please WhatsApp us at +91 93182 97171.');
+                }
+              }}
               className="w-full mt-4 py-3 rounded-2xl font-semibold text-sm border-2 transition-colors hover:bg-[#F0FAF5]"
               style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}
             >

@@ -253,6 +253,7 @@ public class ListingsController(AppDbContext db, IWebHostEnvironment env, IConfi
             l.IsRentToOwn,
             l.IsAvailable,
             l.Pincode,
+            OwnerId       = l.OwnerId,
             DistanceKm    = distanceKm,
             AverageRating = l.AverageRating,
             ReviewCount   = l.ReviewCount,

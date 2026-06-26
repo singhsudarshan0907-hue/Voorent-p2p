@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getListings } from '../services/api';
 import type { Listing } from '../types';
+import { decodeToken } from '../utils/auth';
 
 async function geocodePincode(pincode: string): Promise<{ lat: number; lng: number; label: string } | null> {
   try {
@@ -93,7 +94,11 @@ export default function Browse() {
       userLat ?? undefined,
       userLng ?? undefined,
     )
-      .then((r) => setListings(r.data))
+      .then((r) => {
+        const me = decodeToken();
+        const visible = me?.sub ? r.data.filter(l => l.ownerId !== me.sub) : r.data;
+        setListings(visible);
+      })
       .catch(() => setListings([]))
       .finally(() => setLoading(false));
   }, [activeCategory, searchQuery, userLat, userLng]);

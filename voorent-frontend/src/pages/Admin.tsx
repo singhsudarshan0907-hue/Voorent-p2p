@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -66,6 +67,7 @@ const ADMIN_PHONE = '9503864446';
 const ADMIN_PASSWORD = 'Voorent@54321';
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('admin_auth') === 'true');
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -430,7 +432,7 @@ export default function Admin() {
               {listings.map(l => {
                 const sc = STATUS_COLORS[l.status] || { bg: '#F3F4F6', text: '#555' };
                 return (
-                  <div key={l.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 flex gap-4 items-start">
+                  <div key={l.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 flex gap-4 items-start hover:border-[#2D6A4F] transition-colors">
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#F3F4F6] flex-shrink-0 flex items-center justify-center text-2xl">
                       {l.imageUrl ? <img src={l.imageUrl.startsWith('http') ? l.imageUrl : `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${l.imageUrl}`} className="w-full h-full object-cover" alt="" /> : '📦'}
                     </div>
@@ -454,6 +456,11 @@ export default function Admin() {
                           ✕ Reject
                         </button>
                       </>)}
+                      <button onClick={() => navigate(`/item/${l.id}`)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border-2"
+                        style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+                        👁 View
+                      </button>
                       <button onClick={() => setEditListing(l)}
                         className="px-4 py-2 rounded-xl text-xs font-bold border-2"
                         style={{ borderColor: '#E0E0E0', color: '#555' }}>
