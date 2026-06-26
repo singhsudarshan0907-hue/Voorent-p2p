@@ -152,7 +152,7 @@ export default function ProductDetails() {
                     ₹{monthly.toLocaleString()}<span className="text-base font-normal text-[#555]">/month</span>
                   </p>
                   <p className="text-sm text-[#555]">₹{monthly.toLocaleString()} × 12 months = <strong>₹{upfront12.toLocaleString()}</strong> total</p>
-                  <p className="text-sm text-[#555] mt-1">Amount auto-deducted monthly from your debit card</p>
+                  <p className="text-sm text-[#555] mt-1">Pay via credit card only — 12-month no-cost EMI. Don't see the offer? Contact our team.</p>
                 </div>
               </label>
 
