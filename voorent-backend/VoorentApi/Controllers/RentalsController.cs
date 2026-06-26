@@ -13,6 +13,38 @@ public class RentalsController(AppDbContext db) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
+    // Get all rentals for the logged-in customer
+    [HttpGet("customer")]
+    public async Task<IActionResult> GetMyRentals()
+    {
+        var customerId = UserId;
+        var rentals = await db.Rentals
+            .Include(r => r.Listing)
+                .ThenInclude(l => l.Images)
+            .Include(r => r.Customer)
+            .Where(r => r.CustomerId == customerId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                id            = r.Id,
+                listingId     = r.ListingId,
+                listingTitle  = r.Listing.Title,
+                listingImage  = r.Listing.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? r.Listing.Images.Select(i => i.Url).FirstOrDefault(),
+                condition     = r.Listing.Condition,
+                monthlyRent   = r.MonthlyAmount,
+                status        = r.Status,
+                startDate     = r.StartDate,
+                endDate       = r.EndDate,
+                currentMonth  = r.CurrentMonth,
+                totalMonths   = r.TotalMonths,
+                planType      = r.PlanType,
+                nextPaymentDate = r.NextPayment,
+            })
+            .ToListAsync();
+
+        return Ok(rentals);
+    }
+
     // Customer requests item return
     [HttpPost("{id:guid}/return-request")]
     public async Task<IActionResult> RequestReturn(Guid id)
