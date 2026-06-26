@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -67,7 +66,6 @@ const ADMIN_PHONE = '9503864446';
 const ADMIN_PASSWORD = 'Voorent@54321';
 
 export default function Admin() {
-  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('admin_auth') === 'true');
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
