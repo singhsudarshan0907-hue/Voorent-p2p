@@ -737,11 +737,18 @@ export default function Admin() {
                             {new Date(inv.createdAt).toLocaleDateString('en-IN')}
                           </td>
                           <td className="px-5 py-4">
-                            <button onClick={() => openEditInvoice(inv)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
-                              style={{ borderColor: '#E0E0E0', color: '#555' }}>
-                              ✏ Edit
-                            </button>
+                            <div className="flex gap-2">
+                              <a href={`/invoice/${inv.id}?admin=1`} target="_blank" rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2 no-underline"
+                                style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+                                👁 View
+                              </a>
+                              <button onClick={() => openEditInvoice(inv)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                                style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                                ✏ Edit
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
