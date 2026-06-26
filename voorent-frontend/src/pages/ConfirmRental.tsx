@@ -108,8 +108,7 @@ export default function ConfirmRental() {
                   <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>
                     ₹{monthly.toLocaleString()}<span className="text-sm font-normal text-[#555]">/month</span>
                   </p>
-                  <p className="text-sm text-[#555]">Pay via credit card only — 12-month no-cost EMI.</p>
-                  <p className="text-xs text-[#888] mt-1">Don't see the EMI offer? <span className="text-[#2D6A4F] font-semibold">Contact our team</span> for help.</p>
+                  <p className="text-sm text-[#555]">Pay via credit card only — 12-month no-cost EMI. Don't see the no cost EMI offer? Contact our team at 9318397171.</p>
                 </div>
               </label>
 
