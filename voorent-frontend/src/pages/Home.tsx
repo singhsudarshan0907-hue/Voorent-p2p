@@ -179,27 +179,30 @@ export default function Home() {
         />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(27,67,50,0.88) 0%, rgba(27,67,50,0.40) 100%)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 flex flex-col justify-center h-full py-20">
-          <span className="inline-block text-sm font-semibold text-white/80 mb-4">✨ India's #1 Rent-to-Own Platform</span>
-          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight mb-4" style={{ maxWidth: 680 }}>
-            Rent it now,<br />own it later
+          <span className="inline-block text-xs font-semibold text-white/80 mb-4 px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>✨ India's Smartest Furniture &amp; Appliances Platform</span>
+          <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-5" style={{ maxWidth: 640 }}>
+            Your Furniture &amp; Appliances.<br />Your Choice.
           </h1>
-          <p className="text-lg text-white/80 mb-8" style={{ maxWidth: 480 }}>
-            Upgrade your home with premium furniture & appliances. Flexible monthly payments, zero hidden fees.
-          </p>
+          <div className="mb-8 space-y-1.5" style={{ maxWidth: 420 }}>
+            <p className="text-base text-white/90 font-medium">Rent from people around you.</p>
+            <p className="text-base font-bold" style={{ color: '#F4A261' }}>Rent to people around you.</p>
+            <p className="text-base text-white/90 font-medium">Or sell directly to Voorent.</p>
+            <p className="text-sm text-white/60 pt-1">Everything, through one smart platform.</p>
+          </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => navigate('/browse?category=Furniture')}
+              onClick={() => navigate('/browse')}
               className="px-6 py-3 rounded-full font-bold text-[#1A1A1A] text-base min-h-[48px]"
               style={{ background: '#F4A261' }}
             >
-              Browse Furniture →
+              Browse Rentals →
             </button>
             <button
-              onClick={() => navigate('/browse?category=Appliances')}
+              onClick={() => navigate('/list')}
               className="px-6 py-3 rounded-full font-bold text-white text-base min-h-[48px]"
               style={{ border: '2px solid rgba(255,255,255,0.6)' }}
             >
-              Browse Appliances
+              List an Item
             </button>
           </div>
         </div>
