@@ -41,22 +41,14 @@ public class InvoicesController(AppDbContext db) : ControllerBase
         }));
     }
 
-    // Get single invoice (supports both JWT and X-Admin-Key)
+    // Get single invoice — requires JWT; admin can see any, customer sees only their own
     [HttpGet("{id:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetInvoice(Guid id)
     {
-        const string AdminKey = "voorent-admin-dev-2024";
-        var adminHeader = Request.Headers["X-Admin-Key"].FirstOrDefault();
-        var isAdmin = adminHeader == AdminKey;
-
-        Guid? customerId = null;
-        if (!isAdmin)
-        {
-            var raw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (raw == null) return Unauthorized();
-            customerId = Guid.Parse(raw);
-        }
+        var isAdmin = User.IsInRole("admin");
+        var raw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (raw == null) return Unauthorized();
+        var customerId = Guid.Parse(raw);
 
         var invoice = await db.Invoices
             .Include(i => i.Listing)

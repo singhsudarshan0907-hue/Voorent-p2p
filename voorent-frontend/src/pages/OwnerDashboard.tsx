@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { contactVoorent } from '../services/api';
+import { isLoggedIn } from '../utils/auth';
 import axios from 'axios';
 
 interface ActiveRental {
@@ -59,13 +60,13 @@ export default function OwnerDashboard() {
   const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { navigate('/login'); return; }
-    const headers = { Authorization: `Bearer ${token}` };
+    if (!isLoggedIn()) { navigate('/login'); return; }
+    // Cookie carries JWT — withCredentials sends it automatically
+    const credOpts = { withCredentials: true };
     Promise.allSettled([
-      axios.get(`${BASE}/listings/owner`, { headers }),
-      axios.get(`${BASE}/payouts`, { headers }),
-      axios.get(`${BASE}/users/me`, { headers }),
+      axios.get(`${BASE}/listings/owner`, credOpts),
+      axios.get(`${BASE}/payouts`, credOpts),
+      axios.get(`${BASE}/users/me`, credOpts),
     ])
       .then(([listRes, payRes, userRes]) => {
         if (listRes.status === 'fulfilled') setListings(listRes.value.data);
@@ -83,8 +84,7 @@ export default function OwnerDashboard() {
     setSavingUpi(true);
     setUpiSaved(false);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${BASE}/users/upi`, { upiId: upiInput }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${BASE}/users/upi`, { upiId: upiInput }, { withCredentials: true });
       setUpiId(upiInput);
       setUpiSaved(true);
       setTimeout(() => setUpiSaved(false), 3000);

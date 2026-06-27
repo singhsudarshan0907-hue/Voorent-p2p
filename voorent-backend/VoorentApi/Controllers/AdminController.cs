@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VoorentApi.Data;
@@ -7,22 +8,18 @@ using VoorentApi.Services;
 namespace VoorentApi.Controllers;
 
 /// <summary>
-/// Simple admin endpoints — protected by a static admin key in config.
-/// Usage: include header  X-Admin-Key: <your-key>  on every request.
+/// Admin endpoints — protected by JWT role claim "admin".
+/// Caller must be authenticated with a valid JWT and have Role = "admin" in the DB.
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-public class AdminController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp, EmailService email) : ControllerBase
+[Authorize(Roles = "admin")]
+public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailService email) : ControllerBase
 {
-    private bool IsAdmin() =>
-        Request.Headers.TryGetValue("X-Admin-Key", out var key) &&
-        key == config["Admin:Key"];
-
     // ── GET stats ────────────────────────────────────────────────────────────
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         return Ok(new
         {
             Pending  = await db.Listings.CountAsync(l => l.Status == "pending"),
@@ -39,7 +36,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("listings/pending")]
     public async Task<IActionResult> GetPending()
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
 
         var items = await db.Listings
             .Include(l => l.Images)
@@ -63,7 +59,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("listings")]
     public async Task<IActionResult> GetAll([FromQuery] string? status)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
 
         var q = db.Listings.Include(l => l.Images).Include(l => l.Owner).AsQueryable();
         if (!string.IsNullOrEmpty(status)) q = q.Where(l => l.Status == status);
@@ -84,7 +79,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("listings/{id:guid}/approve")]
     public async Task<IActionResult> Approve(Guid id)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
 
         var listing = await db.Listings
             .Include(l => l.Owner)
@@ -110,7 +104,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("listings/{id:guid}/reject")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectRequest? req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var listing = await db.Listings.FindAsync(id);
         if (listing == null) return NotFound();
         listing.Status    = "rejected";
@@ -123,7 +116,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPut("listings/{id:guid}")]
     public async Task<IActionResult> EditListing(Guid id, [FromBody] EditListingRequest req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var listing = await db.Listings.FindAsync(id);
         if (listing == null) return NotFound();
         if (req.Title != null)       listing.Title       = req.Title;
@@ -157,7 +149,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("listings/{id:guid}/files")]
     public async Task<IActionResult> GetListingFiles(Guid id, [FromServices] IWebHostEnvironment env)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var listing = await db.Listings.Include(l => l.Images).FirstOrDefaultAsync(l => l.Id == id);
         if (listing == null) return NotFound();
 
@@ -186,7 +177,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers([FromQuery] string? search)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var q = db.Users.AsQueryable();
         if (!string.IsNullOrEmpty(search))
             q = q.Where(u => u.Phone.Contains(search) || (u.Name != null && u.Name.Contains(search)) || (u.Email != null && u.Email.Contains(search)));
@@ -208,7 +198,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPut("users/{id:guid}")]
     public async Task<IActionResult> EditUser(Guid id, [FromBody] EditUserRequest req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var user = await db.Users.FindAsync(id);
         if (user == null) return NotFound();
         if (req.Name != null) user.Name = req.Name;
@@ -222,7 +211,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("orders")]
     public async Task<IActionResult> GetOrders([FromQuery] string? status)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var q = db.Rentals
             .Include(r => r.Customer)
             .Include(r => r.Listing)
@@ -244,7 +232,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("orders/{id:guid}/cancel")]
     public async Task<IActionResult> CancelOrder(Guid id)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var rental = await db.Rentals.Include(r => r.Listing).FirstOrDefaultAsync(r => r.Id == id);
         if (rental == null) return NotFound();
         rental.Status = "CANCELLED";
@@ -258,7 +245,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("orders/{id:guid}/complete")]
     public async Task<IActionResult> CompleteOrder(Guid id)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var rental = await db.Rentals.Include(r => r.Listing).FirstOrDefaultAsync(r => r.Id == id);
         if (rental == null) return NotFound();
         rental.Status    = "COMPLETED";
@@ -273,7 +259,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("payouts")]
     public async Task<IActionResult> GetPayouts([FromQuery] string? status)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var q = db.Payouts
             .Include(p => p.Owner)
             .Include(p => p.Rental).ThenInclude(r => r!.Listing)
@@ -295,7 +280,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     public async Task<IActionResult> RunInvoiceJob(
         [FromServices] VoorentApi.Services.InvoiceGenerationService svc)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         await svc.RunJobNowAsync();
         return Ok(new { message = "Invoice generation job triggered." });
     }
@@ -304,7 +288,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("invoices")]
     public async Task<IActionResult> GetInvoices([FromQuery] string? status)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var q = db.Invoices
             .Include(i => i.Customer)
             .Include(i => i.Listing)
@@ -327,7 +310,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         return Ok(new
         {
             TotalUsers    = await db.Users.CountAsync(),
@@ -345,7 +327,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPut("invoices/{id:guid}")]
     public async Task<IActionResult> EditInvoice(Guid id, [FromBody] EditInvoiceRequest req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var invoice = await db.Invoices.FindAsync(id);
         if (invoice == null) return NotFound();
 
@@ -367,7 +348,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("invoices/{id:guid}/apply-coupon")]
     public async Task<IActionResult> ApplyCoupon(Guid id, [FromBody] ApplyCouponRequest req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
 
         var invoice = await db.Invoices.FindAsync(id);
         if (invoice == null) return NotFound("Invoice not found.");
@@ -398,7 +378,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("invoices/{id:guid}/remove-coupon")]
     public async Task<IActionResult> RemoveCoupon(Guid id)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var invoice = await db.Invoices.FindAsync(id);
         if (invoice == null) return NotFound();
         if (invoice.CouponCode != null)
@@ -418,7 +397,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpGet("coupons")]
     public async Task<IActionResult> GetCoupons()
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var coupons = await db.Coupons.OrderByDescending(c => c.CreatedAt).ToListAsync();
         return Ok(coupons.Select(c => new {
             c.Id, c.Code, c.DiscountType, c.DiscountValue,
@@ -430,7 +408,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPost("coupons")]
     public async Task<IActionResult> CreateCoupon([FromBody] CreateCouponRequest req)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         if (await db.Coupons.AnyAsync(c => c.Code == req.Code.ToUpper()))
             return BadRequest("Coupon code already exists.");
         var coupon = new Coupon
@@ -451,7 +428,6 @@ public class AdminController(AppDbContext db, IConfiguration config, WhatsAppSer
     [HttpPut("coupons/{id:guid}/toggle")]
     public async Task<IActionResult> ToggleCoupon(Guid id)
     {
-        if (!IsAdmin()) return Unauthorized("Admin key required.");
         var coupon = await db.Coupons.FindAsync(id);
         if (coupon == null) return NotFound();
         coupon.IsActive = !coupon.IsActive;

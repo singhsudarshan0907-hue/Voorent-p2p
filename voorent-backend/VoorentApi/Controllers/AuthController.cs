@@ -229,10 +229,21 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         }
 
         // isNewUser = true means frontend should show profile step (name + email)
-        // isNewUser = false for returning users who already have name saved
         var needsProfile = isNewUser || string.IsNullOrEmpty(user.Name);
         var jwt = GenerateJwt(user);
-        return Ok(new { token = jwt, isNewUser = needsProfile });
+
+        // Set JWT in httpOnly cookie — never exposed to JS
+        Response.Cookies.Append("voorent_token", jwt, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure   = true,
+            SameSite = SameSiteMode.Strict,
+            Expires  = DateTimeOffset.UtcNow.AddDays(30),
+            Path     = "/"
+        });
+
+        // Return only non-sensitive session info — no token in body
+        return Ok(new { id = user.Id, role = user.Role, name = user.Name ?? "", phone = user.Phone, isNewUser = needsProfile });
     }
 
     private string GenerateJwt(User user)

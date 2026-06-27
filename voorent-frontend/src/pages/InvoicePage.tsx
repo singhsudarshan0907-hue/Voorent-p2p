@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -24,24 +24,17 @@ interface InvoiceDetail {
   dueDate: string | null; paidAt: string | null; createdAt: string;
 }
 
-const ADMIN_KEY = 'voorent-admin-dev-2024';
-
 export default function InvoicePage() {
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
-  const isAdmin = searchParams.get('admin') === '1';
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const hdrs: Record<string, string> = isAdmin
-      ? { 'X-Admin-Key': ADMIN_KEY }
-      : { Authorization: `Bearer ${token}` };
-    axios.get<InvoiceDetail>(`${BASE}/invoices/${id}`, { headers: hdrs })
+    // Cookie carries the JWT; server checks ownership (customer) or role (admin) server-side
+    axios.get<InvoiceDetail>(`${BASE}/invoices/${id}`, { withCredentials: true })
       .then(r => setInvoice(r.data))
       .catch(() => setError('Invoice not found or access denied.'));
-  }, [id, isAdmin]);
+  }, [id]);
 
   if (error) return <div className="flex items-center justify-center min-h-screen text-red-600">{error}</div>;
   if (!invoice) return <div className="flex items-center justify-center min-h-screen text-gray-400">Loading…</div>;

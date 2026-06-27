@@ -33,14 +33,11 @@ public class PayoutsController(AppDbContext db) : ControllerBase
         }));
     }
 
-    // Admin: mark payout as paid (X-Admin-Key only, no JWT needed)
+    // Admin: mark payout as paid — requires authenticated admin session
     [HttpPut("{id:guid}/mark-paid")]
-    [AllowAnonymous]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> MarkPaid(Guid id)
     {
-        const string AdminKey = "voorent-admin-dev-2024";
-        var adminHeader = Request.Headers["X-Admin-Key"].FirstOrDefault();
-        if (adminHeader != AdminKey) return Unauthorized("Admin key required.");
         var payout = await db.Payouts.FindAsync(id);
         if (payout == null) return NotFound();
         payout.Status = "paid";

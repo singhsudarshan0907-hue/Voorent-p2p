@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { isLoggedIn as getIsLoggedIn, getUserInfo } from '../utils/auth';
 
 export default function TopNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const isLoggedIn = !!localStorage.getItem('token');
+  const isLoggedIn = getIsLoggedIn();
+  const userInfo   = getUserInfo();
   const ownerUser  = isLoggedIn;
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -97,7 +99,7 @@ export default function TopNav() {
                 style={{ background: '#fff', color: '#2D6A4F', borderColor: '#2D6A4F' }}
                 title="Profile"
               >
-                {localStorage.getItem('user_name')?.[0]?.toUpperCase() || '👤'}
+                {userInfo?.name?.[0]?.toUpperCase() || '👤'}
               </button>
             </>
           ) : (

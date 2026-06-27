@@ -82,8 +82,6 @@ export default function ListAnItem() {
     setSubmitting(true);
     try {
       const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const token = localStorage.getItem('token');
-
       const fd = new FormData();
       fd.append('title',       form.title);
       fd.append('description', form.description);
@@ -100,13 +98,8 @@ export default function ListAnItem() {
       if (docs.aadhaarFront)  fd.append('aadhaarFront',  docs.aadhaarFront);
       if (docs.aadhaarBack)   fd.append('aadhaarBack',   docs.aadhaarBack);
 
-      const res = await axios.post(`${BASE}/listings`, fd, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // If backend issued a fresh token (role upgraded to owner), save it
-      if (res.data?.token) {
-        localStorage.setItem('token', res.data.token);
-      }
+      // Cookie carries JWT — withCredentials sends it automatically
+      const res = await axios.post(`${BASE}/listings`, fd, { withCredentials: true });
       // Show success step instead of jumping straight to dashboard
       setStep(4);
     } catch {

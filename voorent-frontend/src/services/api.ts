@@ -1,26 +1,33 @@
 import axios from 'axios';
 import type { Listing, Review, Rental } from '../types';
+import { clearUserInfo } from '../utils/auth';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,   // send httpOnly cookie on every request
 });
 
-// Attach JWT token to every request
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// On 401, clear stale user_info and redirect to login
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      clearUserInfo();
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
 
 // Auth
 export const sendOtp = (phone: string, email?: string) =>
   api.post('/auth/send-otp', { phone, email });
 
 export const verifyOtp = (phone: string, otp: string, email?: string) =>
-  api.post<{ token: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp, email });
+  api.post<{ id: string; role: string; name: string; phone: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp, email });
 
 // Image URL helper — images are stored on the backend server, not the frontend
 const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';

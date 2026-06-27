@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getMyRentals } from '../services/api';
+import { getUserInfo, clearUserInfo } from '../utils/auth';
 
 import type { Rental } from '../types/index';
 
@@ -30,27 +31,23 @@ export default function Profile() {
   const [loadingRentals, setLoadingRentals] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { navigate('/login'); return; }
+    const userInfo = getUserInfo();
+    if (!userInfo) { navigate('/login'); return; }
 
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const rawPhone = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/mobilephone'] || '';
-      setPhone(rawPhone);
-    } catch {}
+    // Phone from user_info (set at login)
+    setPhone(userInfo.phone || '');
 
-    // Fetch profile from backend (source of truth)
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/profile`, {
-      headers: { Authorization: `Bearer ${token}` },
+    // Fetch profile from backend (source of truth for name/upiId)
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/me`, {
+      credentials: 'include',
     }).then(r => r.json()).then(data => {
       if (data.name) {
-        localStorage.setItem('user_name', data.name);
         setName(data.name);
         setNameInput(data.name);
       }
       if (data.upiId) { setUpiId(data.upiId); setUpiInput(data.upiId); }
     }).catch(() => {
-      const savedName = localStorage.getItem('user_name') || '';
+      const savedName = userInfo.name || '';
       setName(savedName);
       setNameInput(savedName);
     });
@@ -75,10 +72,11 @@ export default function Profile() {
 
   const handleSaveUpi = async () => {
     setUpiSaving(true);
-    const token = localStorage.getItem('token');
     try {
       await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/upi`, {
-        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ upiId: upiInput }),
       });
       setUpiId(upiInput); setEditUpi(false);
@@ -86,10 +84,15 @@ export default function Profile() {
     finally { setUpiSaving(false); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_name');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}/api/auth/logout`, {
+        method: 'POST', credentials: 'include',
+      });
+    } finally {
+      clearUserInfo();
+      navigate('/');
+    }
   };
 
   const displayPhone = phone ? `+91 ${phone.slice(-10)}` : '';

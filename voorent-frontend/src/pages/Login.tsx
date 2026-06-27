@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOtp, verifyOtp } from '../services/api';
 import api from '../services/api';
+import { setUserInfo } from '../utils/auth';
 
 type Step = 'phone' | 'otp' | 'profile';
 
@@ -39,7 +40,7 @@ export default function Login() {
     setLoading(true); setError('');
     try {
       const res = await verifyOtp(phone, code, email.trim() || undefined);
-      localStorage.setItem('token', res.data.token);
+      setUserInfo({ id: res.data.id, role: res.data.role, name: res.data.name || '', phone });
       if (res.data.isNewUser) {
         setStep('profile');
       } else {

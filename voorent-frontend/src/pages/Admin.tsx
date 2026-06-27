@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
+import { getUserInfo, clearUserInfo } from '../utils/auth';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const ADMIN_KEY = 'voorent-admin-dev-2024';
-const headers = { 'X-Admin-Key': ADMIN_KEY, 'Content-Type': 'application/json' };
+// All admin fetch calls use credentials: 'include' so the httpOnly cookie is sent.
+// No static key. Server-side [Authorize(Roles="admin")] is the gatekeeper.
+const jsonHeaders = { 'Content-Type': 'application/json' };
+const jsonOpts    = { credentials: 'include' as RequestCredentials };
+const headers     = { ...jsonHeaders };  // GET requests (no body)
 
 type Tab = 'listings' | 'users' | 'orders' | 'invoices' | 'payouts';
 
@@ -62,29 +67,18 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   overdue:   { bg: '#FFEBEE', text: '#D62828' },
 };
 
-const ADMIN_PHONE = '9503864446';
-const ADMIN_PASSWORD = 'Voorent@54321';
-
 export default function Admin() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('admin_auth') === 'true');
-  const [loginPhone, setLoginPhone] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+  const userInfo = getUserInfo();
+  const isAuthenticated = userInfo?.role === 'admin';
 
-  const handleAdminLogin = () => {
-    if (loginPhone.trim() === ADMIN_PHONE && loginPassword === ADMIN_PASSWORD) {
-      localStorage.setItem('admin_auth', 'true');
-      setIsAuthenticated(true);
-      setLoginError('');
-    } else {
-      setLoginError('Invalid phone number or password.');
+  const handleAdminLogout = async () => {
+    try {
+      await fetch(`${BASE.replace('/api', '')}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } finally {
+      clearUserInfo();
+      navigate('/login');
     }
-  };
-
-  const handleAdminLogout = () => {
-    localStorage.removeItem('admin_auth');
-    setIsAuthenticated(false);
   };
 
   const [tab, setTab] = useState<Tab>('listings');
@@ -114,7 +108,7 @@ export default function Admin() {
     setFilesLoading(true);
     setFilesModal({ id: l.id, title: l.title, photos: [], docs: [] });
     try {
-      const res = await fetch(`${BASE}/admin/listings/${l.id}/files`, { headers });
+      const res = await fetch(`${BASE}/admin/listings/${l.id}/files`, { ...jsonOpts });
       const data = await res.json();
       setFilesModal({ id: l.id, title: l.title, photos: data.photos || [], docs: data.docs || [] });
     } catch { alert('Failed to load files.'); setFilesModal(null); }
@@ -122,7 +116,7 @@ export default function Admin() {
   };
 
   const fetchSummary = useCallback(async () => {
-    const res = await fetch(`${BASE}/admin/summary`, { headers });
+    const res = await fetch(`${BASE}/admin/summary`, { ...jsonOpts });
     if (res.ok) setSummary(await res.json());
   }, []);
 
@@ -130,19 +124,19 @@ export default function Admin() {
     setLoading(true);
     try {
       if (t === 'listings') {
-        const res = await fetch(`${BASE}/admin/listings${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        const res = await fetch(`${BASE}/admin/listings${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
         if (res.ok) setListings(await res.json());
       } else if (t === 'users') {
-        const res = await fetch(`${BASE}/admin/users${search ? `?search=${search}` : ''}`, { headers });
+        const res = await fetch(`${BASE}/admin/users${search ? `?search=${search}` : ''}`, { ...jsonOpts });
         if (res.ok) setUsers(await res.json());
       } else if (t === 'orders') {
-        const res = await fetch(`${BASE}/admin/orders${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        const res = await fetch(`${BASE}/admin/orders${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
         if (res.ok) setOrders(await res.json());
       } else if (t === 'invoices') {
-        const res = await fetch(`${BASE}/admin/invoices${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        const res = await fetch(`${BASE}/admin/invoices${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
         if (res.ok) setInvoices(await res.json());
       } else if (t === 'payouts') {
-        const res = await fetch(`${BASE}/admin/payouts${statusFilter ? `?status=${statusFilter}` : ''}`, { headers });
+        const res = await fetch(`${BASE}/admin/payouts${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
         if (res.ok) setPayouts(await res.json());
       }
     } finally { setLoading(false); }
@@ -152,16 +146,16 @@ export default function Admin() {
   useEffect(() => { fetchTab(tab); }, [tab, statusFilter]);
 
   const approve = async (id: string) => {
-    await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', headers });
+    await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', ...jsonOpts });
     fetchTab('listings'); fetchSummary();
   };
   const reject = async (id: string) => {
-    await fetch(`${BASE}/admin/listings/${id}/reject`, { method: 'POST', headers, body: JSON.stringify({ reason: '' }) });
+    await fetch(`${BASE}/admin/listings/${id}/reject`, { method: 'POST', ...jsonOpts, headers: jsonHeaders, body: JSON.stringify({ reason: '' }) });
     fetchTab('listings'); fetchSummary();
   };
   const cancelOrder = async (id: string) => {
     if (!confirm('Cancel this order?')) return;
-    await fetch(`${BASE}/admin/orders/${id}/cancel`, { method: 'POST', headers });
+    await fetch(`${BASE}/admin/orders/${id}/cancel`, { method: 'POST', ...jsonOpts });
     fetchTab('orders'); fetchSummary();
   };
   const saveEditListing = async () => {
@@ -175,7 +169,7 @@ export default function Admin() {
 
   const completeOrder = async (id: string) => {
     if (!confirm('Mark this rental as completed? The item will be made available again.')) return;
-    await fetch(`${BASE}/admin/orders/${id}/complete`, { method: 'POST', headers });
+    await fetch(`${BASE}/admin/orders/${id}/complete`, { method: 'POST', ...jsonOpts });
     fetchTab('orders'); fetchSummary();
   };
   const saveEditUser = async () => {
@@ -209,7 +203,7 @@ export default function Admin() {
     if (!isNaN(amt)) body.amount = amt;
     if (invoiceForm.paidAt) body.paidAt = new Date(invoiceForm.paidAt).toISOString();
     if (invoiceForm.dueDate) body.dueDate = new Date(invoiceForm.dueDate).toISOString();
-    await fetch(`${BASE}/admin/invoices/${editInvoice.id}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+    await fetch(`${BASE}/admin/invoices/${editInvoice.id}`, { method: 'PUT', ...jsonOpts, headers: jsonHeaders, body: JSON.stringify(body) });
     setEditInvoice(null); fetchTab('invoices');
   };
   const applyCouponToInvoice = async () => {
@@ -227,12 +221,12 @@ export default function Admin() {
   };
   const removeCouponFromInvoice = async () => {
     if (!editInvoice) return;
-    const res = await fetch(`${BASE}/admin/invoices/${editInvoice.id}/remove-coupon`, { method: 'POST', headers });
+    const res = await fetch(`${BASE}/admin/invoices/${editInvoice.id}/remove-coupon`, { method: 'POST', ...jsonOpts });
     if (res.ok) { setCouponMsg('✅ Coupon removed.'); fetchTab('invoices'); }
   };
 
   const loadCoupons = async () => {
-    const res = await fetch(`${BASE}/admin/coupons`, { headers });
+    const res = await fetch(`${BASE}/admin/coupons`, { ...jsonOpts });
     if (res.ok) setCoupons(await res.json());
   };
   const createCoupon = async () => {
@@ -244,11 +238,11 @@ export default function Admin() {
       maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses) : null,
       expiresAt: newCoupon.expiresAt ? new Date(newCoupon.expiresAt).toISOString() : null,
     };
-    const res = await fetch(`${BASE}/admin/coupons`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const res = await fetch(`${BASE}/admin/coupons`, { method: 'POST', ...jsonOpts, headers: jsonHeaders, body: JSON.stringify(body) });
     if (res.ok) { setNewCoupon({ code: '', discountType: 'percent', discountValue: '', maxUses: '', expiresAt: '' }); loadCoupons(); }
   };
   const toggleCoupon = async (id: string) => {
-    await fetch(`${BASE}/admin/coupons/${id}/toggle`, { method: 'PUT', headers });
+    await fetch(`${BASE}/admin/coupons/${id}/toggle`, { method: 'PUT', ...jsonOpts });
     loadCoupons();
   };
 
@@ -258,12 +252,12 @@ export default function Admin() {
   };
 
   const markPayoutPaid = async (id: string) => {
-    await fetch(`${BASE}/payouts/${id}/mark-paid`, { method: 'PUT', headers });
+    await fetch(`${BASE}/payouts/${id}/mark-paid`, { method: 'PUT', ...jsonOpts });
     fetchTab('payouts');
   };
 
   const runInvoiceJob = async () => {
-    const res = await fetch(`${BASE}/admin/run-invoice-job`, { method: 'POST', headers });
+    const res = await fetch(`${BASE}/admin/run-invoice-job`, { method: 'POST', ...jsonOpts });
     const data = await res.json();
     alert(data.message ?? 'Done');
     fetchTab('invoices'); fetchSummary();
@@ -277,65 +271,11 @@ export default function Admin() {
     { key: 'payouts',  label: '💰 Payouts',  count: payouts.length },
   ];
 
-  // ── Admin Login Gate ─────────────────────────────────────────────────────
+  // ── Admin Gate — server enforces [Authorize(Roles="admin")] on all /api/admin/* ──
+  // If not logged in as admin, redirect to login.
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl border border-[#E0E0E0] p-8 w-full max-w-sm shadow-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold" style={{ color: '#2D6A4F' }}>Voorent</h1>
-            <p className="text-sm text-[#555] mt-1">Admin Dashboard</p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Phone Number</label>
-              <input
-                type="tel" inputMode="numeric" maxLength={10}
-                placeholder="10-digit mobile number"
-                value={loginPhone}
-                onChange={(e) => { setLoginPhone(e.target.value.replace(/\D/g, '')); setLoginError(''); }}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                className="w-full border-2 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2D6A4F] transition-colors"
-                style={{ borderColor: loginError ? '#D62828' : '#E0E0E0' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
-                  value={loginPassword}
-                  onChange={(e) => { setLoginPassword(e.target.value); setLoginError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                  className="w-full border-2 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2D6A4F] transition-colors pr-12"
-                  style={{ borderColor: loginError ? '#D62828' : '#E0E0E0' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] text-xs font-semibold"
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-            </div>
-
-            {loginError && <p className="text-xs text-[#D62828]">{loginError}</p>}
-
-            <button
-              onClick={handleAdminLogin}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm mt-2"
-              style={{ background: '#2D6A4F' }}
-            >
-              Login →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    navigate('/login');
+    return null;
   }
 
   return (

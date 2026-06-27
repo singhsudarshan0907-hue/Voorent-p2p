@@ -1,28 +1,44 @@
-const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
-const PHONE_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/mobilephone';
+// Auth utility — stores only non-sensitive user info in localStorage.
+// The JWT itself lives exclusively in the httpOnly cookie set by the server;
+// it is never readable by JavaScript.
 
-export interface TokenPayload {
-  role: string;
+export interface UserInfo {
+  id:    string;   // user UUID (used to filter own listings etc.)
+  role:  string;   // "customer" | "owner" | "both" | "admin"
+  name:  string;
   phone: string;
-  sub: string;
 }
 
-export function decodeToken(): TokenPayload | null {
+const KEY = 'user_info';
+
+export function getUserInfo(): UserInfo | null {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      role:  payload[ROLE_CLAIM]  || payload['role']  || 'customer',
-      phone: payload[PHONE_CLAIM] || payload['phone'] || '',
-      sub:   payload['sub']       || '',
-    };
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as UserInfo;
   } catch {
     return null;
   }
 }
 
+export function setUserInfo(info: UserInfo): void {
+  localStorage.setItem(KEY, JSON.stringify(info));
+}
+
+export function clearUserInfo(): void {
+  localStorage.removeItem(KEY);
+  localStorage.removeItem('user_name'); // legacy key — clean up
+}
+
+export function isLoggedIn(): boolean {
+  return getUserInfo() !== null;
+}
+
+export function isAdmin(): boolean {
+  return getUserInfo()?.role === 'admin';
+}
+
 export function isOwner(): boolean {
-  const p = decodeToken();
-  return p?.role === 'owner' || p?.role === 'both';
+  const role = getUserInfo()?.role;
+  return role === 'owner' || role === 'both' || role === 'admin';
 }

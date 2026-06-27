@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getMyRentals, contactVoorent } from '../services/api';
 import { useRazorpay } from '../hooks/useRazorpay';
+import { isLoggedIn } from '../utils/auth';
 import axios from 'axios';
 import type { Rental } from '../types';
 
@@ -49,12 +50,10 @@ export default function MyRentals() {
   const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { navigate('/login'); return; }
-    const headers = { Authorization: `Bearer ${token}` };
+    if (!isLoggedIn()) { navigate('/login'); return; }
     Promise.allSettled([
       getMyRentals(),
-      axios.get<Invoice[]>(`${BASE}/invoices/my`, { headers }),
+      axios.get<Invoice[]>(`${BASE}/invoices/my`, { withCredentials: true }),
     ]).then(([rentRes, invRes]) => {
       if (rentRes.status === 'fulfilled') setRentals(rentRes.value.data);
       if (invRes.status === 'fulfilled') setInvoices(invRes.value.data);
@@ -63,11 +62,8 @@ export default function MyRentals() {
 
   const handleReturnRequest = async (rental: Rental) => {
     if (!confirm('Request to return this item? Voorent will contact you within 24 hours to arrange pickup.')) return;
-    const token = localStorage.getItem('token');
     try {
-      await axios.post(`${BASE}/rentals/${rental.id}/return-request`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(`${BASE}/rentals/${rental.id}/return-request`, {}, { withCredentials: true });
       alert('Return request submitted! We\'ll WhatsApp you within 24 hours.');
       const r = await getMyRentals();
       setRentals(r.data);
@@ -84,9 +80,8 @@ export default function MyRentals() {
       onSuccess: () => {
         setPayingId(null);
         getMyRentals().then((r) => setRentals(r.data)).catch(console.error);
-        axios.get<Invoice[]>(`${BASE}/invoices/my`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }).then(r => setInvoices(r.data)).catch(console.error);
+        axios.get<Invoice[]>(`${BASE}/invoices/my`, { withCredentials: true })
+          .then(r => setInvoices(r.data)).catch(console.error);
       },
       onError: (msg) => { setPayingId(null); alert(msg); },
       onDismiss: () => setPayingId(null),
