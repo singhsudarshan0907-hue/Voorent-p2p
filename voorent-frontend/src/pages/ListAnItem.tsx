@@ -99,7 +99,7 @@ export default function ListAnItem() {
       if (docs.aadhaarBack)   fd.append('aadhaarBack',   docs.aadhaarBack);
 
       // Cookie carries JWT — withCredentials sends it automatically
-      const res = await axios.post(`${BASE}/listings`, fd, { withCredentials: true });
+      await axios.post(`${BASE}/listings`, fd, { withCredentials: true });
       // Show success step instead of jumping straight to dashboard
       setStep(4);
     } catch {
