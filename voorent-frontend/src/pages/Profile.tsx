@@ -22,6 +22,10 @@ export default function Profile() {
   const [nameInput, setNameInput] = useState('');
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
+  const [upiId, setUpiId]         = useState('');
+  const [upiInput, setUpiInput]   = useState('');
+  const [editUpi, setEditUpi]     = useState(false);
+  const [upiSaving, setUpiSaving] = useState(false);
   const [rentals, setRentals]     = useState<Rental[]>([]);
   const [loadingRentals, setLoadingRentals] = useState(true);
 
@@ -35,9 +39,21 @@ export default function Profile() {
       setPhone(rawPhone);
     } catch {}
 
-    const savedName = localStorage.getItem('user_name') || '';
-    setName(savedName);
-    setNameInput(savedName);
+    // Fetch profile from backend (source of truth)
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.json()).then(data => {
+      if (data.name) {
+        localStorage.setItem('user_name', data.name);
+        setName(data.name);
+        setNameInput(data.name);
+      }
+      if (data.upiId) { setUpiId(data.upiId); setUpiInput(data.upiId); }
+    }).catch(() => {
+      const savedName = localStorage.getItem('user_name') || '';
+      setName(savedName);
+      setNameInput(savedName);
+    });
 
     getMyRentals()
       .then(r => setRentals(r.data))
@@ -55,6 +71,19 @@ export default function Profile() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }, 400);
+  };
+
+  const handleSaveUpi = async () => {
+    setUpiSaving(true);
+    const token = localStorage.getItem('token');
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/upi`, {
+        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upiId: upiInput }),
+      });
+      setUpiId(upiInput); setEditUpi(false);
+    } catch { alert('Failed to save UPI ID.'); }
+    finally { setUpiSaving(false); }
   };
 
   const handleLogout = () => {
@@ -136,6 +165,49 @@ export default function Profile() {
             ))}
           </div>
         </div>
+
+        {/* ── UPI ID for payouts ── */}
+        <section className="mb-6">
+          <div className="bg-white rounded-2xl border border-[#E0E0E0] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="font-bold text-[#1A1A1A] text-sm">UPI ID for Payouts</p>
+                <p className="text-xs text-[#999]">Used to receive rent payments from Voorent</p>
+              </div>
+              {!editUpi && (
+                <button onClick={() => setEditUpi(true)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full border"
+                  style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+                  {upiId ? 'Edit' : 'Add'}
+                </button>
+              )}
+            </div>
+            {editUpi ? (
+              <div className="flex gap-2 mt-2">
+                <input
+                  autoFocus value={upiInput}
+                  onChange={e => setUpiInput(e.target.value)}
+                  placeholder="yourname@upi"
+                  className="flex-1 border border-[#E0E0E0] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                />
+                <button onClick={handleSaveUpi} disabled={upiSaving}
+                  className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-60"
+                  style={{ background: '#2D6A4F' }}>
+                  {upiSaving ? '…' : 'Save'}
+                </button>
+                <button onClick={() => setEditUpi(false)}
+                  className="px-3 py-2 rounded-xl text-sm border text-[#555]"
+                  style={{ borderColor: '#E0E0E0' }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm font-mono mt-1" style={{ color: upiId ? '#2D6A4F' : '#CCC' }}>
+                {upiId || 'Not set'}
+              </p>
+            )}
+          </div>
+        </section>
 
         {/* ── Recent rentals ── */}
         <section className="mb-6">

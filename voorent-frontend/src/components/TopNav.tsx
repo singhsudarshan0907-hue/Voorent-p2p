@@ -93,8 +93,8 @@ export default function TopNav() {
               </button>
               <button
                 onClick={() => navigate('/profile')}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                style={{ background: '#2D6A4F' }}
+                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 border-2"
+                style={{ background: '#fff', color: '#2D6A4F', borderColor: '#2D6A4F' }}
                 title="Profile"
               >
                 {localStorage.getItem('user_name')?.[0]?.toUpperCase() || '👤'}

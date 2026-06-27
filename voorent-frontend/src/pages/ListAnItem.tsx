@@ -21,7 +21,8 @@ interface FormData {
 interface DocFiles {
   purchaseBill?: File;
   panCard?: File;
-  aadhaar?: File;
+  aadhaarFront?: File;
+  aadhaarBack?: File;
 }
 
 const STEPS = ['Item Details', 'Add Photos', 'Set Price', 'Verify Ownership'];
@@ -60,7 +61,10 @@ export default function ListAnItem() {
       if (photos.filter(Boolean).length === 0) e.photos = 'Please upload at least 1 photo.';
     }
     if (step === 3) {
-      if (!docs.purchaseBill && !docs.panCard && !docs.aadhaar) e.docs = 'Please upload at least 1 document.';
+      if (!docs.purchaseBill) e.purchaseBill = 'Purchase bill is required.';
+      if (!docs.panCard) e.panCard = 'PAN card is required.';
+      if (!docs.aadhaarFront) e.aadhaarFront = 'Aadhaar front photo is required.';
+      if (!docs.aadhaarBack) e.aadhaarBack = 'Aadhaar back photo is required.';
     }
     if (step === 2) {
       if (!price || price < 500) e.itemPrice = 'Item value must be at least ₹500.';
@@ -90,10 +94,11 @@ export default function ListAnItem() {
       fd.append('pincode',     form.pincode);
       photos.filter(Boolean).forEach((photo) => fd.append('images', photo));
 
-      // Append verification documents if provided
-      if (docs.purchaseBill) fd.append('purchaseBill', docs.purchaseBill);
-      if (docs.panCard)      fd.append('panCard',      docs.panCard);
-      if (docs.aadhaar)      fd.append('aadhaar',      docs.aadhaar);
+      // Append verification documents
+      if (docs.purchaseBill)  fd.append('purchaseBill',  docs.purchaseBill);
+      if (docs.panCard)       fd.append('panCard',       docs.panCard);
+      if (docs.aadhaarFront)  fd.append('aadhaarFront',  docs.aadhaarFront);
+      if (docs.aadhaarBack)   fd.append('aadhaarBack',   docs.aadhaarBack);
 
       const res = await axios.post(`${BASE}/listings`, fd, {
         headers: { Authorization: `Bearer ${token}` },
@@ -112,9 +117,10 @@ export default function ListAnItem() {
   };
 
   const docConfigs: { key: keyof DocFiles; label: string; sub: string; icon: string }[] = [
-    { key: 'purchaseBill', label: 'Purchase bill', sub: 'Proof of ownership', icon: '🧾' },
-    { key: 'panCard',      label: 'PAN card',      sub: 'For identity verification', icon: '🪪' },
-    { key: 'aadhaar',      label: 'Aadhaar',       sub: 'Masked via DigiLocker', icon: '📋' },
+    { key: 'purchaseBill',  label: 'Purchase bill',     sub: 'Proof of ownership (required)',    icon: '🧾' },
+    { key: 'panCard',       label: 'PAN card',          sub: 'Identity verification (required)',  icon: '🪪' },
+    { key: 'aadhaarFront',  label: 'Aadhaar — Front',   sub: 'Front side of Aadhaar (required)', icon: '📋' },
+    { key: 'aadhaarBack',   label: 'Aadhaar — Back',    sub: 'Back side of Aadhaar (required)',  icon: '📋' },
   ];
 
   // ── Success screen (step 4) ────────────────────────────────────
@@ -419,15 +425,16 @@ export default function ListAnItem() {
               {/* ── Step 3: Verify Ownership ── */}
               {step === 3 && (
                 <div className="space-y-4">
-                  <p className="text-sm text-[#555]">Upload documents to verify your identity and item ownership. All optional — you can submit now and our team will follow up if needed.</p>
+                  <p className="text-sm text-[#555]">All documents are <strong>mandatory</strong>. Upload front and back of Aadhaar, PAN card, and purchase bill to verify your identity and item ownership.</p>
                   {docConfigs.map((doc) => {
                     const file = docs[doc.key];
                     const hasFile = !!file;
+                    const hasErr = !!errors[doc.key];
                     return (
                       <label
                         key={doc.key}
                         className="flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-colors bg-white"
-                        style={{ borderColor: hasFile ? '#2D6A4F' : '#E0E0E0' }}
+                        style={{ borderColor: hasFile ? '#2D6A4F' : hasErr ? '#D62828' : '#E0E0E0' }}
                       >
                         <input
                           type="file"
@@ -446,7 +453,7 @@ export default function ListAnItem() {
                               ✓ {file.name}
                             </p>
                           ) : (
-                            <p className="text-sm text-[#999]">{doc.sub}</p>
+                            <p className="text-sm" style={{ color: hasErr ? '#D62828' : '#999' }}>{doc.sub}</p>
                           )}
                         </div>
                         <span
@@ -461,7 +468,6 @@ export default function ListAnItem() {
                       </label>
                     );
                   })}
-                  {errors.docs && <p className="text-xs text-[#D62828] font-semibold">{errors.docs}</p>}
                   <div className="p-4 rounded-xl flex items-start gap-3 bg-[#F9F9F9] border border-[#E0E0E0]">
                     <span>🔒</span>
                     <p className="text-sm text-[#555]">Your documents are never shared with renters. Used only for identity verification to keep the marketplace safe.</p>

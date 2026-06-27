@@ -1018,10 +1018,10 @@ export default function Admin() {
                               <p className="text-sm font-semibold capitalize text-[#222]">{doc.name}</p>
                               <p className="text-xs text-[#888]">{doc.ext.replace('.', '').toUpperCase()}</p>
                             </div>
-                            <a href={BACKEND + doc.url} target="_blank" rel="noreferrer" download
+                            <a href={BACKEND + doc.url} target="_blank" rel="noreferrer"
                               className="px-4 py-2 rounded-xl text-xs font-bold border-2 whitespace-nowrap"
                               style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
-                              ⬇ Download
+                              👁 View
                             </a>
                           </div>
                         );
