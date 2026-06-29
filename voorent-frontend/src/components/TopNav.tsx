@@ -96,7 +96,7 @@ export default function TopNav() {
               <button
                 onClick={() => navigate('/profile')}
                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 border-2"
-                style={{ background: '#fff', color: '#2D6A4F', borderColor: '#2D6A4F' }}
+                style={{ background: '#2D6A4F', color: '#fff', borderColor: '#2D6A4F' }}
                 title="Profile"
               >
                 {userInfo?.name?.[0]?.toUpperCase() || '👤'}

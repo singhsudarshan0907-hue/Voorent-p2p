@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getMyRentals } from '../services/api';
-import { getUserInfo, clearUserInfo } from '../utils/auth';
+import { getUserInfo, clearUserInfo, setUserInfo } from '../utils/auth';
 
 import type { Rental } from '../types/index';
 
@@ -58,16 +58,28 @@ export default function Profile() {
       .finally(() => setLoadingRentals(false));
   }, []);
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return;
     setSaving(true);
-    setTimeout(() => {
-      localStorage.setItem('user_name', nameInput);
-      setName(nameInput);
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/users/profile`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameInput.trim() }),
+      });
+      setName(nameInput.trim());
       setEditName(false);
-      setSaving(false);
       setSaved(true);
+      // Update localStorage so TopNav initial refreshes
+      const userInfo = getUserInfo();
+      if (userInfo) setUserInfo({ ...userInfo, name: nameInput.trim() });
       setTimeout(() => setSaved(false), 2000);
-    }, 400);
+    } catch {
+      alert('Failed to save name. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveUpi = async () => {
@@ -129,8 +141,8 @@ export default function Profile() {
                     className="text-xl font-bold bg-white/20 text-white placeholder-white/60 rounded-lg px-3 py-1 outline-none border border-white/30 w-full max-w-xs"
                     placeholder="Your full name"
                   />
-                  <button onClick={handleSaveName} disabled={saving}
-                    className="text-xs font-bold px-3 py-1.5 rounded-full bg-white text-[#2D6A4F] flex-shrink-0">
+                  <button onClick={handleSaveName} disabled={saving || !nameInput.trim()}
+                    className="text-xs font-bold px-3 py-1.5 rounded-full bg-white text-[#2D6A4F] flex-shrink-0 disabled:opacity-40">
                     {saving ? '…' : 'Save'}
                   </button>
                   <button onClick={() => { setEditName(false); setNameInput(name); }}
