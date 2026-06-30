@@ -189,9 +189,11 @@ public class ListingsController(AppDbContext db, IWebHostEnvironment env, IConfi
         // Save verification documents if provided --------------------------------
         var docFiles = new[]
         {
-            (req.PurchaseBill, "purchase_bill"),
-            (req.PanCard,      "pan_card"),
-            (req.Aadhaar,      "aadhaar"),
+            (req.PurchaseBill,  "purchase_bill"),
+            (req.PanCard,       "pan_card"),
+            (req.AadhaarFront,  "aadhaar_front"),
+            (req.AadhaarBack,   "aadhaar_back"),
+            (req.Aadhaar,       "aadhaar"),   // legacy fallback
         };
         var hasDoc = docFiles.Any(d => d.Item1 != null);
         if (hasDoc)
@@ -312,7 +314,9 @@ public class CreateListingFormData
     public string PricingType  { get; set; } = "consignment";
     public string? Pincode     { get; set; }
     public List<IFormFile>? Images { get; set; }
-    public IFormFile? PurchaseBill { get; set; }
-    public IFormFile? PanCard      { get; set; }
-    public IFormFile? Aadhaar      { get; set; }
+    public IFormFile? PurchaseBill  { get; set; }
+    public IFormFile? PanCard       { get; set; }
+    public IFormFile? Aadhaar       { get; set; }   // legacy single-file (kept for compat)
+    public IFormFile? AadhaarFront  { get; set; }
+    public IFormFile? AadhaarBack   { get; set; }
 }
