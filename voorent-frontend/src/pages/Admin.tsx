@@ -52,6 +52,17 @@ interface Coupon {
   isActive: boolean; createdAt: string;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  PROCESSING: 'Processing',
+  UPCOMING:   'Processing',
+  ACTIVE:     'Delivered',
+  RETURNED:   'Returned',
+  CANCELLED:  'Cancelled',
+  DEFAULTER:  'Defaulter',
+  OVERDUE:    'Overdue',
+  COMPLETED:  'Completed',
+};
+
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending:   { bg: '#FFF8E1', text: '#F59E0B' },
   active:    { bg: '#E8F5E9', text: '#2D6A4F' },
@@ -105,7 +116,6 @@ export default function Admin() {
   const [statusFilter, setStatusFilter] = useState('');
   const [filesModal, setFilesModal] = useState<{ id: string; title: string; photos: string[]; docs: { name: string; url: string; ext: string }[] } | null>(null);
   const [filesLoading, setFilesLoading] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<AdminOrder | null>(null);
   const [editOrderForm, setEditOrderForm] = useState({ deliveryAddress: '', monthlyAmount: '' });
 
@@ -151,12 +161,6 @@ export default function Admin() {
 
   useEffect(() => { fetchSummary(); }, []);
   useEffect(() => { fetchTab(tab); }, [tab, statusFilter]);
-  useEffect(() => {
-    if (!openDropdown) return;
-    const close = () => setOpenDropdown(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [openDropdown]);
 
   const approve = async (id: string) => {
     await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', ...jsonOpts });
@@ -385,7 +389,7 @@ export default function Admin() {
               className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
               style={{ borderColor: '#E0E0E0' }}>
               <option value="">All statuses</option>
-              {['PROCESSING','UPCOMING','ACTIVE','OVERDUE','RETURNED','DEFAULTER','COMPLETED','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+              {['PROCESSING','ACTIVE','RETURNED','DEFAULTER','CANCELLED'].map(s => <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>)}
             </select>
           )}
           {tab === 'invoices' && (
@@ -546,56 +550,35 @@ export default function Admin() {
                         <td className="px-5 py-4 text-[#555] hidden md:table-cell max-w-[160px] truncate">{o.listingTitle}</td>
                         <td className="px-5 py-4">
                           <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-                            style={{ background: sc.bg, color: sc.text }}>{o.status}</span>
+                            style={{ background: sc.bg, color: sc.text }}>{STATUS_LABELS[o.status] ?? o.status}</span>
                         </td>
                         <td className="px-5 py-4 text-[#555] hidden md:table-cell">
                           {o.currentMonth}/{o.totalMonths} months
                         </td>
                         <td className="px-5 py-4 font-bold text-[#1A1A1A]">₹{o.monthlyAmount.toLocaleString()}/mo</td>
                         <td className="px-5 py-4">
-                          <div className="relative">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === o.id ? null : o.id); }}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold border-2 flex items-center gap-1"
-                              style={{ borderColor: '#E0E0E0', color: '#555' }}>
-                              ⚙ Actions <span className="text-[10px]">▾</span>
-                            </button>
-                            {openDropdown === o.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white border border-[#E0E0E0] rounded-xl shadow-lg z-20 w-44 py-1 overflow-hidden"
-                                onClick={e => e.stopPropagation()}>
-                                <button onClick={() => { processOrder(o.id); setOpenDropdown(null); }}
-                                  disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#1565C0] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
-                                  ⚡ Process
-                                </button>
-                                <button onClick={() => { deliverOrder(o.id); setOpenDropdown(null); }}
-                                  disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#2D6A4F] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
-                                  🚚 Mark Delivered
-                                </button>
-                                <button onClick={() => { returnOrder(o.id); setOpenDropdown(null); }}
-                                  disabled={!['ACTIVE','OVERDUE','DEFAULTER'].includes(o.status)}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#6B21A8] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
-                                  ↩ Mark Returned
-                                </button>
-                                <button onClick={() => { cancelOrder(o.id); setOpenDropdown(null); }}
-                                  disabled={['COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#D62828] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
-                                  ✕ Mark Cancelled
-                                </button>
-                                <button onClick={() => { defaulterOrder(o.id); setOpenDropdown(null); }}
-                                  disabled={!['ACTIVE','OVERDUE'].includes(o.status)}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#9F1239] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
-                                  ⚠ Mark Defaulter
-                                </button>
-                                <div className="border-t border-[#F0F0F0] mx-2 my-1" />
-                                <button onClick={() => { openEditOrder(o); setOpenDropdown(null); }}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#555] transition-colors">
-                                  ✏ Edit Order
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const action = e.target.value;
+                              if (!action) return;
+                              if (action === 'process')   processOrder(o.id);
+                              if (action === 'deliver')   deliverOrder(o.id);
+                              if (action === 'return')    returnOrder(o.id);
+                              if (action === 'cancel')    cancelOrder(o.id);
+                              if (action === 'defaulter') defaulterOrder(o.id);
+                              if (action === 'edit')      openEditOrder(o);
+                            }}
+                            className="border-2 rounded-xl px-3 py-2 text-xs font-semibold outline-none cursor-pointer"
+                            style={{ borderColor: '#E0E0E0', color: '#555', minWidth: 150 }}>
+                            <option value="">⚙ Operations</option>
+                            <option value="process"   disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}>Process</option>
+                            <option value="deliver"   disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}>Mark Delivered</option>
+                            <option value="return"    disabled={!['ACTIVE','OVERDUE','DEFAULTER'].includes(o.status)}>Mark Returned</option>
+                            <option value="cancel"    disabled={['COMPLETED','RETURNED','CANCELLED'].includes(o.status)}>Mark Cancelled</option>
+                            <option value="defaulter" disabled={!['ACTIVE','OVERDUE'].includes(o.status)}>Mark Defaulter</option>
+                            <option value="edit">Edit Order</option>
+                          </select>
                         </td>
                       </tr>
                     );
