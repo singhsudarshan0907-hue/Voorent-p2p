@@ -63,6 +63,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   OVERDUE:   { bg: '#FFEBEE', text: '#D62828' },
   CANCELLED:         { bg: '#FEE2E2', text: '#991B1B' },
   RETURN_REQUESTED:  { bg: '#FFF3E0', text: '#E65100' },
+  RETURNED:          { bg: '#F3E8FF', text: '#6B21A8' },
+  DEFAULTER:         { bg: '#FFF1F2', text: '#9F1239' },
   paid:      { bg: '#E8F5E9', text: '#2D6A4F' },
   overdue:   { bg: '#FFEBEE', text: '#D62828' },
 };
@@ -170,6 +172,21 @@ export default function Admin() {
   const completeOrder = async (id: string) => {
     if (!confirm('Mark this rental as completed? The item will be made available again.')) return;
     await fetch(`${BASE}/admin/orders/${id}/complete`, { method: 'POST', ...jsonOpts });
+    fetchTab('orders'); fetchSummary();
+  };
+  const deliverOrder = async (id: string) => {
+    if (!confirm('Mark this order as DELIVERED? Billing cycle will start from today.')) return;
+    await fetch(`${BASE}/admin/orders/${id}/deliver`, { method: 'POST', ...jsonOpts });
+    fetchTab('orders'); fetchSummary();
+  };
+  const returnOrder = async (id: string) => {
+    if (!confirm('Mark this order as RETURNED? No further invoices will be generated.')) return;
+    await fetch(`${BASE}/admin/orders/${id}/return`, { method: 'POST', ...jsonOpts });
+    fetchTab('orders'); fetchSummary();
+  };
+  const defaulterOrder = async (id: string) => {
+    if (!confirm('Mark this customer as DEFAULTER?')) return;
+    await fetch(`${BASE}/admin/orders/${id}/defaulter`, { method: 'POST', ...jsonOpts });
     fetchTab('orders'); fetchSummary();
   };
   const saveEditUser = async () => {
@@ -512,19 +529,61 @@ export default function Admin() {
                         <td className="px-5 py-4 font-bold text-[#1A1A1A]">₹{o.monthlyAmount.toLocaleString()}/mo</td>
                         <td className="px-5 py-4">
                           <div className="flex flex-col gap-1.5">
-                            {o.status === 'RETURN_REQUESTED' && (
+                            {/* UPCOMING → can deliver or cancel */}
+                            {o.status === 'UPCOMING' && (<>
+                              <button onClick={() => deliverOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#2D6A4F' }}>
+                                🚚 Mark Delivered
+                              </button>
+                              <button onClick={() => cancelOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                                style={{ borderColor: '#D62828', color: '#D62828' }}>
+                                ✕ Cancel
+                              </button>
+                            </>)}
+                            {/* ACTIVE / OVERDUE → can return, mark defaulter, or cancel */}
+                            {(o.status === 'ACTIVE' || o.status === 'OVERDUE') && (<>
+                              <button onClick={() => returnOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#6B21A8' }}>
+                                ↩ Mark Returned
+                              </button>
+                              <button onClick={() => defaulterOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#9F1239' }}>
+                                ⚠ Defaulter
+                              </button>
+                              <button onClick={() => cancelOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                                style={{ borderColor: '#D62828', color: '#D62828' }}>
+                                ✕ Cancel
+                              </button>
+                            </>)}
+                            {/* RETURN_REQUESTED → complete or cancel */}
+                            {o.status === 'RETURN_REQUESTED' && (<>
                               <button onClick={() => completeOrder(o.id)}
                                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
                                 style={{ background: '#2D6A4F' }}>
                                 ✓ Complete
                               </button>
-                            )}
-                            {o.status !== 'CANCELLED' && o.status !== 'COMPLETED' && o.status !== 'RETURN_REQUESTED' && (
+                              <button onClick={() => returnOrder(o.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#6B21A8' }}>
+                                ↩ Mark Returned
+                              </button>
+                            </>)}
+                            {/* DEFAULTER → can still cancel */}
+                            {o.status === 'DEFAULTER' && (
                               <button onClick={() => cancelOrder(o.id)}
                                 className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
                                 style={{ borderColor: '#D62828', color: '#D62828' }}>
-                                Cancel
+                                ✕ Cancel
                               </button>
+                            )}
+                            {/* Terminal states — no actions */}
+                            {(o.status === 'CANCELLED' || o.status === 'COMPLETED' || o.status === 'RETURNED') && (
+                              <span className="text-xs text-[#999]">—</span>
                             )}
                           </div>
                         </td>

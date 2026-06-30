@@ -234,9 +234,9 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
     {
         var rental = await db.Rentals.Include(r => r.Listing).FirstOrDefaultAsync(r => r.Id == id);
         if (rental == null) return NotFound();
-        rental.Status = "CANCELLED";
+        rental.Status    = "CANCELLED";
         rental.UpdatedAt = DateTime.UtcNow;
-        if (rental.Listing != null) rental.Listing.IsAvailable = true;
+        if (rental.Listing != null) { rental.Listing.IsAvailable = true; rental.Listing.Status = "active"; }
         await db.SaveChangesAsync();
         return Ok(new { message = "Order cancelled." });
     }
@@ -253,6 +253,64 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         if (rental.Listing != null) { rental.Listing.IsAvailable = true; rental.Listing.Status = "active"; }
         await db.SaveChangesAsync();
         return Ok(new { message = "Order marked as completed." });
+    }
+
+    // ── Mark Delivered — item physically handed to customer ───────────────────
+    [HttpPost("orders/{id:guid}/deliver")]
+    public async Task<IActionResult> DeliverOrder(Guid id)
+    {
+        var rental = await db.Rentals
+            .Include(r => r.Listing)
+            .Include(r => r.Customer)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (rental == null) return NotFound();
+        if (rental.Status is "CANCELLED" or "COMPLETED" or "RETURNED")
+            return BadRequest(new { message = "Cannot mark this order as delivered." });
+
+        rental.Status      = "ACTIVE";
+        rental.StartDate   = DateTime.UtcNow;
+        rental.NextPayment = DateTime.UtcNow.AddMonths(1);
+        rental.UpdatedAt   = DateTime.UtcNow;
+        if (rental.Listing != null) rental.Listing.IsAvailable = false;
+        await db.SaveChangesAsync();
+
+        // Notify customer by email
+        if (rental.Customer != null && !string.IsNullOrEmpty(rental.Customer.Email))
+            _ = email.OrderDeliveredAsync(
+                    rental.Customer.Email,
+                    rental.Customer.Name ?? "",
+                    rental.Listing?.Title ?? "your item");
+
+        return Ok(new { message = "Order marked as delivered. Invoices will now be generated monthly." });
+    }
+
+    // ── Mark Returned — item back with owner ──────────────────────────────────
+    [HttpPost("orders/{id:guid}/return")]
+    public async Task<IActionResult> ReturnOrder(Guid id)
+    {
+        var rental = await db.Rentals
+            .Include(r => r.Listing)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (rental == null) return NotFound();
+
+        rental.Status    = "RETURNED";
+        rental.EndDate   = DateTime.UtcNow;
+        rental.UpdatedAt = DateTime.UtcNow;
+        if (rental.Listing != null) { rental.Listing.IsAvailable = true; rental.Listing.Status = "active"; }
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Order marked as returned. No further invoices will be generated." });
+    }
+
+    // ── Mark Defaulter — customer not paying ──────────────────────────────────
+    [HttpPost("orders/{id:guid}/defaulter")]
+    public async Task<IActionResult> DefaulterOrder(Guid id)
+    {
+        var rental = await db.Rentals.FindAsync(id);
+        if (rental == null) return NotFound();
+        rental.Status    = "DEFAULTER";
+        rental.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Order marked as defaulter." });
     }
 
     // ── GET all payouts ───────────────────────────────────────────────────────

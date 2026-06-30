@@ -51,6 +51,28 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
         );
     }
 
+    /// <summary>Email to customer when a monthly invoice is generated and payment is due.</summary>
+    public Task InvoicePendingAsync(string toEmail, string name, string invoiceNumber, decimal amount, DateTime dueDate, string listingTitle)
+    {
+        var displayName = string.IsNullOrWhiteSpace(name) ? "there" : name;
+        return SendAsync(
+            to:      toEmail,
+            subject: $"Invoice {invoiceNumber} — Payment Due | Voorent",
+            body:    InvoicePendingBody(displayName, invoiceNumber, amount, dueDate, listingTitle)
+        );
+    }
+
+    /// <summary>Email to customer when item is marked delivered by admin.</summary>
+    public Task OrderDeliveredAsync(string toEmail, string name, string listingTitle)
+    {
+        var displayName = string.IsNullOrWhiteSpace(name) ? "there" : name;
+        return SendAsync(
+            to:      toEmail,
+            subject: $"Your item has been delivered — {listingTitle}",
+            body:    OrderDeliveredBody(displayName, listingTitle)
+        );
+    }
+
     /// <summary>Email to seller when their listing is approved and goes live.</summary>
     public Task ListingApprovedAsync(string toEmail, string ownerName, string listingTitle)
     {
@@ -265,6 +287,69 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Questions about payouts? <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>
+</p>
+{Footer()}";
+
+    private static string InvoicePendingBody(string name, string invoiceNumber, decimal amount, DateTime dueDate, string listingTitle) => $@"
+{Header()}
+<div style='background:#FFF9F0;border:1px solid #FDDBB4;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center'>
+  <span style='font-size:28px;margin-right:12px'>🧾</span>
+  <div>
+    <div style='font-weight:700;color:#7A4F00;font-size:16px'>New Invoice Generated</div>
+    <div style='color:#555;font-size:13px;margin-top:2px'>Hi {name}, your monthly invoice is ready.</div>
+  </div>
+</div>
+<table width='100%' cellpadding='0' cellspacing='0' style='border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;margin-bottom:24px;font-size:14px'>
+  <tr style='background:#F9F9F9'>
+    <td style='padding:13px 16px;color:#777;font-size:13px;width:40%'>Invoice Number</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:700;font-family:monospace'>{invoiceNumber}</td>
+  </tr>
+  <tr>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Item</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600;border-top:1px solid #F0F0F0'>{listingTitle}</td>
+  </tr>
+  <tr style='background:#F9F9F9'>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Amount Due</td>
+    <td style='padding:13px 16px;color:#D62828;font-weight:700;font-size:18px;border-top:1px solid #F0F0F0'>₹{amount:N0}</td>
+  </tr>
+  <tr>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Due Date</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600;border-top:1px solid #F0F0F0'>{dueDate:dd MMM yyyy}</td>
+  </tr>
+</table>
+<p style='color:#555;line-height:1.7;margin:0 0 20px;font-size:14px'>
+  Please make the payment before the due date to avoid any interruption in your rental.
+</p>
+<div style='text-align:center;margin-bottom:24px'>
+  <a href='https://p2p.voorent.com/my-rentals' {CtaStyle()}>Pay Now →</a>
+</div>
+<p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
+  Questions? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>
+  or call <a href='tel:+919318297171' style='color:#2D6A4F'>+91 93182 97171</a>.
+</p>
+{Footer()}";
+
+    private static string OrderDeliveredBody(string name, string listingTitle) => $@"
+{Header()}
+<div style='background:#F0FAF5;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center'>
+  <span style='font-size:28px;margin-right:12px'>🚚</span>
+  <div>
+    <div style='font-weight:700;color:#1B4332;font-size:16px'>Item Delivered!</div>
+    <div style='color:#555;font-size:13px;margin-top:2px'>Hi {name}, your item is now with you.</div>
+  </div>
+</div>
+<p style='color:#555;line-height:1.7;margin:0 0 16px;font-size:15px'>
+  Your rental of <strong style='color:#1A1A1A'>{listingTitle}</strong> has been marked as delivered.
+  Your monthly billing cycle has now started.
+</p>
+<p style='color:#555;line-height:1.7;margin:0 0 20px;font-size:15px'>
+  You will receive an invoice each month. Please make payments on time to keep your rental active.
+</p>
+<div style='text-align:center;margin-bottom:24px'>
+  <a href='https://p2p.voorent.com/my-rentals' {CtaStyle()}>View My Rentals →</a>
+</div>
+<p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
+  Issues with your delivery? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>.
 </p>
 {Footer()}";
 

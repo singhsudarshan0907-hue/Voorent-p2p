@@ -42,8 +42,9 @@ public class InvoiceGenerationService(
     private async Task RunJobAsync()
     {
         using var scope = scopeFactory.CreateScope();
-        var db  = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var now = DateTime.UtcNow;
+        var db    = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var email = scope.ServiceProvider.GetRequiredService<EmailService>();
+        var now   = DateTime.UtcNow;
 
         logger.LogInformation("[InvoiceJob] Starting at {Time}", now);
 
@@ -120,6 +121,17 @@ public class InvoiceGenerationService(
                 await db.SaveChangesAsync();
                 created++;
                 logger.LogInformation("[InvoiceJob] Created {Num} — Rental {Id} Month {M}", number, rental.Id, nextMonth);
+
+                // Email customer: invoice pending, please pay
+                var customer = await db.Users.FindAsync(rental.CustomerId);
+                if (customer != null && !string.IsNullOrEmpty(customer.Email))
+                    _ = email.InvoicePendingAsync(
+                            customer.Email,
+                            customer.Name ?? "",
+                            number,
+                            rental.MonthlyAmount,
+                            rental.NextPayment!.Value.AddMonths(-1), // due date = old NextPayment before advancing
+                            rental.Listing?.Title ?? "your item");
             }
             catch (Exception ex)
             {
