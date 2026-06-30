@@ -30,7 +30,8 @@ interface AdminUser {
 interface AdminOrder {
   id: string; status: string; planType: string; currentMonth: number;
   totalMonths: number; monthlyAmount: number; startDate: string;
-  createdAt: string; customerName: string; customerPhone: string; listingTitle: string;
+  createdAt: string; customerName: string; customerPhone: string;
+  listingTitle: string; listingId: string; deliveryAddress?: string;
 }
 interface AdminPayout {
   id: string; amount: number; status: string; paidAt: string | null;
@@ -57,8 +58,9 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   rented:    { bg: '#E3F2FD', text: '#1565C0' },
   rejected:  { bg: '#FFEBEE', text: '#C62828' },
   sold:      { bg: '#F3F4F6', text: '#555' },
-  ACTIVE:    { bg: '#E8F5E9', text: '#2D6A4F' },
-  UPCOMING:  { bg: '#E3F2FD', text: '#1565C0' },
+  ACTIVE:      { bg: '#E8F5E9', text: '#2D6A4F' },
+  UPCOMING:    { bg: '#E3F2FD', text: '#1565C0' },
+  PROCESSING:  { bg: '#E3F2FD', text: '#1565C0' },
   COMPLETED: { bg: '#F3F4F6', text: '#555' },
   OVERDUE:   { bg: '#FFEBEE', text: '#D62828' },
   CANCELLED:         { bg: '#FEE2E2', text: '#991B1B' },
@@ -103,6 +105,9 @@ export default function Admin() {
   const [statusFilter, setStatusFilter] = useState('');
   const [filesModal, setFilesModal] = useState<{ id: string; title: string; photos: string[]; docs: { name: string; url: string; ext: string }[] } | null>(null);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [editOrder, setEditOrder] = useState<AdminOrder | null>(null);
+  const [editOrderForm, setEditOrderForm] = useState({ deliveryAddress: '', monthlyAmount: '' });
 
   const BACKEND = BASE.replace('/api', '');
 
@@ -146,6 +151,12 @@ export default function Admin() {
 
   useEffect(() => { fetchSummary(); }, []);
   useEffect(() => { fetchTab(tab); }, [tab, statusFilter]);
+  useEffect(() => {
+    if (!openDropdown) return;
+    const close = () => setOpenDropdown(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openDropdown]);
 
   const approve = async (id: string) => {
     await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', ...jsonOpts });
@@ -169,11 +180,6 @@ export default function Admin() {
     setEditListing(null); fetchTab('listings');
   };
 
-  const completeOrder = async (id: string) => {
-    if (!confirm('Mark this rental as completed? The item will be made available again.')) return;
-    await fetch(`${BASE}/admin/orders/${id}/complete`, { method: 'POST', ...jsonOpts });
-    fetchTab('orders'); fetchSummary();
-  };
   const deliverOrder = async (id: string) => {
     if (!confirm('Mark this order as DELIVERED? Billing cycle will start from today.')) return;
     await fetch(`${BASE}/admin/orders/${id}/deliver`, { method: 'POST', ...jsonOpts });
@@ -188,6 +194,25 @@ export default function Admin() {
     if (!confirm('Mark this customer as DEFAULTER?')) return;
     await fetch(`${BASE}/admin/orders/${id}/defaulter`, { method: 'POST', ...jsonOpts });
     fetchTab('orders'); fetchSummary();
+  };
+  const processOrder = async (id: string) => {
+    await fetch(`${BASE}/admin/orders/${id}/process`, { method: 'POST', ...jsonOpts });
+    fetchTab('orders'); fetchSummary();
+  };
+  const openEditOrder = (o: AdminOrder) => {
+    setEditOrder(o);
+    setEditOrderForm({ deliveryAddress: o.deliveryAddress || '', monthlyAmount: o.monthlyAmount.toString() });
+  };
+  const saveEditOrder = async () => {
+    if (!editOrder) return;
+    const body: Record<string, unknown> = {};
+    if (editOrderForm.deliveryAddress) body.deliveryAddress = editOrderForm.deliveryAddress;
+    const amt = parseFloat(editOrderForm.monthlyAmount);
+    if (!isNaN(amt)) body.monthlyAmount = amt;
+    const res = await fetch(`${BASE}/admin/orders/${editOrder.id}/edit`, { method: 'PUT', ...jsonOpts, headers: jsonHeaders, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (res.ok && data.invoicesUpdated > 0) alert(`Order updated. ${data.invoicesUpdated} invoice(s) amount updated.`);
+    setEditOrder(null); fetchTab('orders');
   };
   const saveEditUser = async () => {
     if (!editUser) return;
@@ -360,7 +385,7 @@ export default function Admin() {
               className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
               style={{ borderColor: '#E0E0E0' }}>
               <option value="">All statuses</option>
-              {['UPCOMING','ACTIVE','COMPLETED','OVERDUE','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+              {['PROCESSING','UPCOMING','ACTIVE','OVERDUE','RETURNED','DEFAULTER','COMPLETED','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
           {tab === 'invoices' && (
@@ -528,62 +553,47 @@ export default function Admin() {
                         </td>
                         <td className="px-5 py-4 font-bold text-[#1A1A1A]">₹{o.monthlyAmount.toLocaleString()}/mo</td>
                         <td className="px-5 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            {/* UPCOMING → can deliver or cancel */}
-                            {o.status === 'UPCOMING' && (<>
-                              <button onClick={() => deliverOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                                style={{ background: '#2D6A4F' }}>
-                                🚚 Mark Delivered
-                              </button>
-                              <button onClick={() => cancelOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
-                                style={{ borderColor: '#D62828', color: '#D62828' }}>
-                                ✕ Cancel
-                              </button>
-                            </>)}
-                            {/* ACTIVE / OVERDUE → can return, mark defaulter, or cancel */}
-                            {(o.status === 'ACTIVE' || o.status === 'OVERDUE') && (<>
-                              <button onClick={() => returnOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                                style={{ background: '#6B21A8' }}>
-                                ↩ Mark Returned
-                              </button>
-                              <button onClick={() => defaulterOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                                style={{ background: '#9F1239' }}>
-                                ⚠ Defaulter
-                              </button>
-                              <button onClick={() => cancelOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
-                                style={{ borderColor: '#D62828', color: '#D62828' }}>
-                                ✕ Cancel
-                              </button>
-                            </>)}
-                            {/* RETURN_REQUESTED → complete or cancel */}
-                            {o.status === 'RETURN_REQUESTED' && (<>
-                              <button onClick={() => completeOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                                style={{ background: '#2D6A4F' }}>
-                                ✓ Complete
-                              </button>
-                              <button onClick={() => returnOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                                style={{ background: '#6B21A8' }}>
-                                ↩ Mark Returned
-                              </button>
-                            </>)}
-                            {/* DEFAULTER → can still cancel */}
-                            {o.status === 'DEFAULTER' && (
-                              <button onClick={() => cancelOrder(o.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
-                                style={{ borderColor: '#D62828', color: '#D62828' }}>
-                                ✕ Cancel
-                              </button>
-                            )}
-                            {/* Terminal states — no actions */}
-                            {(o.status === 'CANCELLED' || o.status === 'COMPLETED' || o.status === 'RETURNED') && (
-                              <span className="text-xs text-[#999]">—</span>
+                          <div className="relative">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === o.id ? null : o.id); }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold border-2 flex items-center gap-1"
+                              style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                              ⚙ Actions <span className="text-[10px]">▾</span>
+                            </button>
+                            {openDropdown === o.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-white border border-[#E0E0E0] rounded-xl shadow-lg z-20 w-44 py-1 overflow-hidden"
+                                onClick={e => e.stopPropagation()}>
+                                <button onClick={() => { processOrder(o.id); setOpenDropdown(null); }}
+                                  disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#1565C0] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
+                                  ⚡ Process
+                                </button>
+                                <button onClick={() => { deliverOrder(o.id); setOpenDropdown(null); }}
+                                  disabled={['ACTIVE','COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#2D6A4F] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
+                                  🚚 Mark Delivered
+                                </button>
+                                <button onClick={() => { returnOrder(o.id); setOpenDropdown(null); }}
+                                  disabled={!['ACTIVE','OVERDUE','DEFAULTER'].includes(o.status)}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#6B21A8] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
+                                  ↩ Mark Returned
+                                </button>
+                                <button onClick={() => { cancelOrder(o.id); setOpenDropdown(null); }}
+                                  disabled={['COMPLETED','RETURNED','CANCELLED'].includes(o.status)}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#D62828] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
+                                  ✕ Mark Cancelled
+                                </button>
+                                <button onClick={() => { defaulterOrder(o.id); setOpenDropdown(null); }}
+                                  disabled={!['ACTIVE','OVERDUE'].includes(o.status)}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#9F1239] disabled:text-[#ccc] disabled:cursor-not-allowed transition-colors">
+                                  ⚠ Mark Defaulter
+                                </button>
+                                <div className="border-t border-[#F0F0F0] mx-2 my-1" />
+                                <button onClick={() => { openEditOrder(o); setOpenDropdown(null); }}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#F9F9F9] text-[#555] transition-colors">
+                                  ✏ Edit Order
+                                </button>
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1030,6 +1040,45 @@ export default function Admin() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Order Modal */}
+      {editOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditOrder(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-1">Edit Order</h2>
+            <p className="text-xs font-mono text-[#999] mb-4">#{editOrder.id.slice(0,8).toUpperCase()} · {editOrder.customerName} · {editOrder.listingTitle}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Delivery Address</label>
+                <textarea value={editOrderForm.deliveryAddress}
+                  onChange={e => setEditOrderForm({...editOrderForm, deliveryAddress: e.target.value})}
+                  rows={3} placeholder="Full delivery address…"
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F] resize-none"
+                  style={{ borderColor: '#E0E0E0' }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Monthly Amount (₹)</label>
+                <input type="number" value={editOrderForm.monthlyAmount}
+                  onChange={e => setEditOrderForm({...editOrderForm, monthlyAmount: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                  style={{ borderColor: '#E0E0E0' }} />
+                <p className="text-xs text-[#999] mt-1">Changes apply to all pending invoices from current month onwards. Month 1 can be edited manually via the Invoices tab.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditOrder(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2" style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                Cancel
+              </button>
+              <button onClick={saveEditOrder}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
+                Save changes
+              </button>
+            </div>
           </div>
         </div>
       )}

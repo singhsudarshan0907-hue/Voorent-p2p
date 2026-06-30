@@ -221,6 +221,7 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         {
             r.Id, r.Status, r.PlanType, r.CurrentMonth, r.TotalMonths,
             r.MonthlyAmount, r.StartDate, r.NextPayment, r.CreatedAt,
+            r.DeliveryAddress,
             CustomerName  = r.Customer?.Name ?? "",
             CustomerPhone = r.Customer?.Phone ?? "",
             ListingTitle  = r.Listing?.Title ?? "",
@@ -311,6 +312,58 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         rental.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(new { message = "Order marked as defaulter." });
+    }
+
+    // ── Process order (set back to PROCESSING state) ──────────────────────────
+    [HttpPost("orders/{id:guid}/process")]
+    public async Task<IActionResult> ProcessOrder(Guid id)
+    {
+        var rental = await db.Rentals.FindAsync(id);
+        if (rental == null) return NotFound();
+        if (rental.Status is "ACTIVE" or "COMPLETED" or "RETURNED")
+            return BadRequest(new { message = "Cannot reprocess this order." });
+        rental.Status    = "PROCESSING";
+        rental.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Order set to processing." });
+    }
+
+    // ── Edit order — address, amount (updates pending invoices) ───────────────
+    [HttpPut("orders/{id:guid}/edit")]
+    public async Task<IActionResult> EditOrder(Guid id, [FromBody] EditOrderRequest req)
+    {
+        var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == id);
+        if (rental == null) return NotFound();
+
+        if (req.DeliveryAddress != null) rental.DeliveryAddress = req.DeliveryAddress;
+
+        bool amountChanged = req.MonthlyAmount.HasValue && req.MonthlyAmount.Value != rental.MonthlyAmount;
+        if (amountChanged) rental.MonthlyAmount = req.MonthlyAmount!.Value;
+
+        rental.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        // Update all pending/overdue invoices from current month onwards
+        int invoicesUpdated = 0;
+        if (amountChanged)
+        {
+            var pendingInvoices = await db.Invoices
+                .Where(i => i.RentalId == rental.Id
+                         && (i.Status == "pending" || i.Status == "overdue")
+                         && i.MonthNumber >= rental.CurrentMonth)
+                .ToListAsync();
+
+            foreach (var inv in pendingInvoices)
+            {
+                if (inv.OriginalAmount == null) inv.OriginalAmount = inv.Amount;
+                inv.Amount = req.MonthlyAmount!.Value;
+                invoicesUpdated++;
+            }
+
+            if (pendingInvoices.Any()) await db.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Order updated.", invoicesUpdated });
     }
 
     // ── GET all payouts ───────────────────────────────────────────────────────
@@ -499,5 +552,6 @@ public record EditListingRequest(string? Title, string? Description, string? Sta
 internal class NominatimResult { [System.Text.Json.Serialization.JsonPropertyName("lat")] public string Lat { get; set; } = ""; [System.Text.Json.Serialization.JsonPropertyName("lon")] public string Lon { get; set; } = ""; }
 public record EditUserRequest(string? Name, string? Role);
 public record EditInvoiceRequest(decimal? Amount, DateTime? PaidAt, DateTime? DueDate, string? Status, string? Notes);
+public record EditOrderRequest(string? DeliveryAddress, decimal? MonthlyAmount);
 public record ApplyCouponRequest(string Code);
 public record CreateCouponRequest(string Code, string DiscountType, decimal DiscountValue, int? MaxUses, DateTime? ExpiresAt);

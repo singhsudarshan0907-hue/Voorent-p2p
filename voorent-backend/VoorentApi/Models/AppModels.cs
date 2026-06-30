@@ -86,6 +86,7 @@ public class Rental
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public DateTime? NextPayment { get; set; }
+    public string? DeliveryAddress { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -267,7 +267,7 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
                 MonthlyAmount = (int)(listing.ItemPrice / 12),
                 TotalMonths   = totalMonths,
                 CurrentMonth  = 1,
-                Status        = "UPCOMING",
+                Status        = "PROCESSING",
                 StartDate     = startDate,
                 NextPayment   = startDate.AddMonths(1),  // month 2 due 1 month after delivery
             };

@@ -52,7 +52,7 @@ public class InvoiceGenerationService(
 
         // ── 1. Activate UPCOMING rentals whose StartDate has passed ───────────
         var toActivate = await db.Rentals
-            .Where(r => r.Status == "UPCOMING" && r.StartDate <= now)
+            .Where(r => (r.Status == "PROCESSING" || r.Status == "UPCOMING") && r.StartDate <= now)
             .ToListAsync();
 
         foreach (var r in toActivate)
