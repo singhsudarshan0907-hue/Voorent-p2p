@@ -763,6 +763,7 @@ export default function Admin() {
                     <th className="text-left px-5 py-3 font-semibold text-[#555]">Amount</th>
                     <th className="text-left px-5 py-3 font-semibold text-[#555]">UPI</th>
                     <th className="text-left px-5 py-3 font-semibold text-[#555]">Status</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Paid On</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
@@ -788,6 +789,9 @@ export default function Admin() {
                             : { background: '#FFF9C4', color: '#F57F17' }}>
                           {p.status === 'paid' ? '✓ Transferred' : '⏳ Pending'}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 text-[#999] text-xs hidden md:table-cell">
+                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-IN') : '—'}
                       </td>
                       <td className="px-5 py-4">
                         {p.status === 'pending' && (
