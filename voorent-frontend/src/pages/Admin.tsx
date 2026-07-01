@@ -114,6 +114,8 @@ export default function Admin() {
   const [newCoupon, setNewCoupon] = useState({ code: '', discountType: 'percent', discountValue: '', maxUses: '', expiresAt: '' });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [filesModal, setFilesModal] = useState<{ id: string; title: string; photos: string[]; docs: { name: string; url: string; ext: string }[] } | null>(null);
   const [filesLoading, setFilesLoading] = useState(false);
   const [editOrder, setEditOrder] = useState<AdminOrder | null>(null);
@@ -141,10 +143,23 @@ export default function Admin() {
     setLoading(true);
     try {
       if (t === 'listings') {
-        const res = await fetch(`${BASE}/admin/listings${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
+        const p = new URLSearchParams();
+        if (statusFilter) p.set('status', statusFilter);
+        if (search)       p.set('search', search);
+        if (dateFilter === 'this_week') {
+          const d = new Date(); d.setDate(d.getDate() - 7); p.set('from', d.toISOString());
+        } else if (dateFilter === 'last_month') {
+          const d = new Date(); d.setMonth(d.getMonth() - 1); p.set('from', d.toISOString());
+        }
+        const qs = p.toString();
+        const res = await fetch(`${BASE}/admin/listings${qs ? '?' + qs : ''}`, { ...jsonOpts });
         if (res.ok) setListings(await res.json());
       } else if (t === 'users') {
-        const res = await fetch(`${BASE}/admin/users${search ? `?search=${search}` : ''}`, { ...jsonOpts });
+        const p = new URLSearchParams();
+        if (search)     p.set('search', search);
+        if (roleFilter) p.set('role', roleFilter);
+        const qs = p.toString();
+        const res = await fetch(`${BASE}/admin/users${qs ? '?' + qs : ''}`, { ...jsonOpts });
         if (res.ok) setUsers(await res.json());
       } else if (t === 'orders') {
         const res = await fetch(`${BASE}/admin/orders${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
@@ -157,10 +172,10 @@ export default function Admin() {
         if (res.ok) setPayouts(await res.json());
       }
     } finally { setLoading(false); }
-  }, [tab, statusFilter, search]);
+  }, [tab, statusFilter, search, roleFilter, dateFilter]);
 
   useEffect(() => { fetchSummary(); }, []);
-  useEffect(() => { fetchTab(tab); }, [tab, statusFilter]);
+  useEffect(() => { fetchTab(tab); }, [tab, statusFilter, roleFilter, dateFilter]);
 
   const approve = async (id: string) => {
     await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', ...jsonOpts });
@@ -222,7 +237,7 @@ export default function Admin() {
     if (!editUser) return;
     await fetch(`${BASE}/admin/users/${editUser.id}`, {
       method: 'PUT', headers,
-      body: JSON.stringify({ name: editUser.name, role: editUser.role }),
+      body: JSON.stringify({ name: editUser.name, role: editUser.role, email: editUser.email || null, upiId: editUser.upiId || null }),
     });
     setEditUser(null); fetchTab('users');
   };
@@ -355,7 +370,7 @@ export default function Admin() {
           {/* Tabs */}
           <div className="flex gap-0 border-b border-[#E0E0E0]">
             {TABS.map(t => (
-              <button key={t.key} onClick={() => { setTab(t.key); setStatusFilter(''); setSearch(''); }}
+              <button key={t.key} onClick={() => { setTab(t.key); setStatusFilter(''); setSearch(''); setRoleFilter(''); setDateFilter(''); }}
                 className="px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap"
                 style={{ borderColor: tab === t.key ? '#2D6A4F' : 'transparent', color: tab === t.key ? '#2D6A4F' : '#999' }}>
                 {t.label} <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#555]">{t.count}</span>
@@ -369,21 +384,39 @@ export default function Admin() {
 
         {/* Filters bar */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
-          {tab === 'users' && (
+          {tab === 'users' && (<>
             <input value={search} onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchTab('users')}
               placeholder="Search by name or phone…"
               className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
               style={{ borderColor: '#E0E0E0', minWidth: 220 }} />
-          )}
-          {tab === 'listings' && (
+            <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All roles</option>
+              {['customer','owner','admin'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </>)}
+          {tab === 'listings' && (<>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchTab('listings')}
+              placeholder="Search by name, owner, phone…"
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0', minWidth: 220 }} />
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
               style={{ borderColor: '#E0E0E0' }}>
               <option value="">All statuses</option>
               {['pending','active','rented','rejected','sold'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-          )}
+            <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All time</option>
+              <option value="this_week">This week</option>
+              <option value="last_month">Last month</option>
+            </select>
+          </>)}
           {tab === 'orders' && (
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
@@ -696,7 +729,7 @@ export default function Admin() {
                       <th className="text-left px-5 py-3 font-semibold text-[#555]">Month</th>
                       <th className="text-left px-5 py-3 font-semibold text-[#555]">Amount</th>
                       <th className="text-left px-5 py-3 font-semibold text-[#555]">Status</th>
-                      <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Date</th>
+                      <th className="text-left px-5 py-3 font-semibold text-[#555] hidden md:table-cell">Due / Paid</th>
                       <th className="px-5 py-3" />
                     </tr>
                   </thead>
@@ -726,7 +759,11 @@ export default function Admin() {
                               style={{ background: ic.bg, color: ic.text }}>{inv.status}</span>
                           </td>
                           <td className="px-5 py-4 text-[#999] hidden md:table-cell">
-                            {new Date(inv.createdAt).toLocaleDateString('en-IN')}
+                            {inv.status === 'paid' && inv.paidAt
+                              ? <><span className="text-[#2D6A4F] text-xs font-semibold">Paid </span>{new Date(inv.paidAt).toLocaleDateString('en-IN')}</>
+                              : inv.dueDate
+                              ? <><span className="text-[#F59E0B] text-xs font-semibold">Due </span>{new Date(inv.dueDate).toLocaleDateString('en-IN')}</>
+                              : '—'}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex gap-2">
@@ -1089,6 +1126,17 @@ export default function Admin() {
                   className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }}>
                   {['customer','owner','admin'].map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Email</label>
+                <input type="email" value={editUser.email || ''} onChange={e => setEditUser({...editUser, email: e.target.value})}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">UPI ID</label>
+                <input value={editUser.upiId || ''} onChange={e => setEditUser({...editUser, upiId: e.target.value})}
+                  placeholder="e.g. name@upi"
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

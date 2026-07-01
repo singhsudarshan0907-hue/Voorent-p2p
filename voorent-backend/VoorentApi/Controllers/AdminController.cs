@@ -57,11 +57,17 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
 
     // ── GET all listings (any status) ────────────────────────────────────────
     [HttpGet("listings")]
-    public async Task<IActionResult> GetAll([FromQuery] string? status)
+    public async Task<IActionResult> GetAll([FromQuery] string? status, [FromQuery] string? search, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
 
         var q = db.Listings.Include(l => l.Images).Include(l => l.Owner).AsQueryable();
         if (!string.IsNullOrEmpty(status)) q = q.Where(l => l.Status == status);
+        if (!string.IsNullOrEmpty(search))
+            q = q.Where(l => l.Title.Contains(search)
+                          || (l.Owner != null && l.Owner.Name != null && l.Owner.Name.Contains(search))
+                          || (l.Owner != null && l.Owner.Phone.Contains(search)));
+        if (from.HasValue) q = q.Where(l => l.CreatedAt >= from.Value);
+        if (to.HasValue)   q = q.Where(l => l.CreatedAt <= to.Value);
 
         var items = await q.OrderByDescending(l => l.CreatedAt).ToListAsync();
 
@@ -175,11 +181,12 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
 
     // ── GET all users ─────────────────────────────────────────────────────────
     [HttpGet("users")]
-    public async Task<IActionResult> GetUsers([FromQuery] string? search)
+    public async Task<IActionResult> GetUsers([FromQuery] string? search, [FromQuery] string? role)
     {
         var q = db.Users.AsQueryable();
         if (!string.IsNullOrEmpty(search))
             q = q.Where(u => u.Phone.Contains(search) || (u.Name != null && u.Name.Contains(search)) || (u.Email != null && u.Email.Contains(search)));
+        if (!string.IsNullOrEmpty(role)) q = q.Where(u => u.Role == role);
         var users = await q.OrderByDescending(u => u.CreatedAt).ToListAsync();
         var ids   = users.Select(u => u.Id).ToList();
         var rentalCounts = await db.Rentals.Where(r => ids.Contains(r.CustomerId))
@@ -200,8 +207,10 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
     {
         var user = await db.Users.FindAsync(id);
         if (user == null) return NotFound();
-        if (req.Name != null) user.Name = req.Name;
-        if (req.Role != null) user.Role = req.Role;
+        if (req.Name  != null) user.Name  = req.Name;
+        if (req.Role  != null) user.Role  = req.Role;
+        if (req.Email != null) user.Email = req.Email;
+        if (req.UpiId != null) user.UpiId = req.UpiId;
         user.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(new { message = "User updated." });
@@ -550,7 +559,7 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
 public record RejectRequest(string? Reason);
 public record EditListingRequest(string? Title, string? Description, string? Status, decimal? ItemPrice, string? Pincode);
 internal class NominatimResult { [System.Text.Json.Serialization.JsonPropertyName("lat")] public string Lat { get; set; } = ""; [System.Text.Json.Serialization.JsonPropertyName("lon")] public string Lon { get; set; } = ""; }
-public record EditUserRequest(string? Name, string? Role);
+public record EditUserRequest(string? Name, string? Role, string? Email, string? UpiId);
 public record EditInvoiceRequest(decimal? Amount, DateTime? PaidAt, DateTime? DueDate, string? Status, string? Notes);
 public record EditOrderRequest(string? DeliveryAddress, decimal? MonthlyAmount);
 public record ApplyCouponRequest(string Code);
