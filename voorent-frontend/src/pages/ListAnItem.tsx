@@ -25,6 +25,7 @@ interface DocFiles {
   aadhaarBack?: File;
 }
 
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const STEPS = ['Item Details', 'Add Photos', 'Set Price', 'Verify Ownership'];
 
 export default function ListAnItem() {
@@ -43,6 +44,8 @@ export default function ListAnItem() {
   const [docs, setDocs] = useState<DocFiles>({});
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiApplied, setAiApplied] = useState(false);
 
   const price = parseFloat(form.itemPrice) || 0;
   const monthly = price > 0 ? Math.round(price / 12) : 0;
@@ -77,11 +80,41 @@ export default function ListAnItem() {
   const next = () => { if (validate()) setStep((s) => Math.min(s + 1, 3)); };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
+  const analyzeWithAI = async () => {
+    const photo = photos.find(Boolean);
+    if (!photo) return;
+    setAiLoading(true);
+    try {
+      // Convert file to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(photo);
+      });
+      const mimeType = photo.type || 'image/jpeg';
+      const res = await axios.post(`${BASE}/analyze/image`, { imageBase64: base64, mimeType }, { withCredentials: true });
+      const ai = res.data;
+      setForm(f => ({
+        ...f,
+        ...(ai.category === 'Furniture' || ai.category === 'Appliances' || ai.category === 'Electronics' ? { category: ai.category as Category } : {}),
+        ...(ai.title    ? { title: ai.title }             : {}),
+        ...(ai.description ? { description: ai.description } : {}),
+        ...(ai.condition === 'Like New' || ai.condition === 'Good' || ai.condition === 'Acceptable' ? { condition: ai.condition as Condition } : {}),
+      }));
+      setAiApplied(true);
+      setTimeout(() => setAiApplied(false), 4000);
+    } catch {
+      alert('AI analysis failed. Please fill in the details manually.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const fd = new FormData();
       fd.append('title',       form.title);
       fd.append('description', form.description);
@@ -340,6 +373,26 @@ export default function ListAnItem() {
                   </div>
                   <p className="text-xs text-[#999] mt-4 text-center">Min 1 photo · Max 8 · JPG/PNG up to 10MB each</p>
                   {errors.photos && <p className="text-xs text-[#D62828] mt-2 text-center font-semibold">{errors.photos}</p>}
+
+                  {/* AI Analyze button — shows once at least 1 photo is added */}
+                  {photos.some(Boolean) && (
+                    <div className="mt-5 p-4 rounded-2xl border-2 border-dashed" style={{ borderColor: '#2D6A4F', background: '#F0FAF5' }}>
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-[#2D6A4F]">✨ Auto-fill with AI</p>
+                          <p className="text-xs text-[#555] mt-0.5">Gemini will analyze your photo and suggest title, description & condition</p>
+                        </div>
+                        <button onClick={analyzeWithAI} disabled={aiLoading}
+                          className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
+                          style={{ background: '#2D6A4F' }}>
+                          {aiLoading ? <><span className="animate-spin">⏳</span> Analyzing…</> : '✨ Analyze Photo'}
+                        </button>
+                      </div>
+                      {aiApplied && (
+                        <p className="text-xs text-[#2D6A4F] font-semibold mt-3">✅ Details filled! Go back to Step 1 to review and edit.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
