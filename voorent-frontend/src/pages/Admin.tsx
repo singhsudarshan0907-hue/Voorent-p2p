@@ -252,8 +252,8 @@ export default function Admin() {
     setCouponMsg('');
     setInvoiceForm({
       amount: inv.amount.toString(),
-      paidAt: inv.paidAt ? inv.paidAt.slice(0, 16) : '',
-      dueDate: inv.dueDate ? inv.dueDate.slice(0, 16) : '',
+      paidAt: inv.paidAt ? inv.paidAt.slice(0, 10) : '',
+      dueDate: inv.dueDate ? inv.dueDate.slice(0, 10) : '',
       status: inv.status,
       notes: inv.notes || '',
       couponCode: '',
@@ -267,8 +267,11 @@ export default function Admin() {
     };
     const amt = parseFloat(invoiceForm.amount);
     if (!isNaN(amt)) body.amount = amt;
-    if (invoiceForm.paidAt) body.paidAt = new Date(invoiceForm.paidAt).toISOString();
-    if (invoiceForm.dueDate) body.dueDate = new Date(invoiceForm.dueDate).toISOString();
+    // Use T12:00:00Z (noon UTC) so date never shifts across a day boundary for any timezone
+    if (invoiceForm.paidAt) body.paidAt = new Date(invoiceForm.paidAt + 'T12:00:00Z').toISOString();
+    if (invoiceForm.dueDate) body.dueDate = new Date(invoiceForm.dueDate + 'T12:00:00Z').toISOString();
+    // Explicitly clear paidAt when status is not paid
+    if (invoiceForm.status !== 'paid') body.paidAt = null;
     await fetch(`${BASE}/admin/invoices/${editInvoice.id}`, { method: 'PUT', ...jsonOpts, headers: jsonHeaders, body: JSON.stringify(body) });
     setEditInvoice(null); fetchTab('invoices');
   };
@@ -769,7 +772,7 @@ export default function Admin() {
                               style={{ background: ic.bg, color: ic.text }}>{inv.status}</span>
                           </td>
                           <td className="px-5 py-4 text-[#999] hidden md:table-cell">
-                            {inv.paidAt
+                            {inv.status === 'paid' && inv.paidAt
                               ? <><span className="text-[#2D6A4F] text-xs font-semibold">Paid </span>{new Date(inv.paidAt).toLocaleDateString('en-IN')}</>
                               : inv.dueDate
                               ? <><span className="text-[#F59E0B] text-xs font-semibold">Due </span>{new Date(inv.dueDate).toLocaleDateString('en-IN')}</>
@@ -933,10 +936,9 @@ export default function Admin() {
                 <select value={invoiceForm.status}
                   onChange={e => {
                     const s = e.target.value;
-                    // Auto-fill paidAt with now when marking paid (if not already set)
-                    const paidAt = s === 'paid' && !invoiceForm.paidAt
-                      ? new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-                      : invoiceForm.paidAt;
+                    const today = new Date().toISOString().slice(0, 10);
+                    // Auto-fill paidAt with today when marking paid; clear it otherwise
+                    const paidAt = s === 'paid' ? (invoiceForm.paidAt || today) : '';
                     setInvoiceForm({...invoiceForm, status: s, paidAt});
                   }}
                   className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
@@ -946,15 +948,16 @@ export default function Admin() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#555] mb-1 block">Paid At</label>
-                  <input type="datetime-local" value={invoiceForm.paidAt}
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Paid On</label>
+                  <input type="date" value={invoiceForm.paidAt}
                     onChange={e => setInvoiceForm({...invoiceForm, paidAt: e.target.value})}
-                    className="w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                    disabled={invoiceForm.status !== 'paid'}
+                    className="w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#2D6A4F] disabled:opacity-40"
                     style={{ borderColor: '#E0E0E0' }} />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#555] mb-1 block">Due Date</label>
-                  <input type="datetime-local" value={invoiceForm.dueDate}
+                  <input type="date" value={invoiceForm.dueDate}
                     onChange={e => setInvoiceForm({...invoiceForm, dueDate: e.target.value})}
                     className="w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
                     style={{ borderColor: '#E0E0E0' }} />
