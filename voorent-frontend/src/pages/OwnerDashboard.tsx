@@ -56,6 +56,8 @@ export default function OwnerDashboard() {
   const [upiInput, setUpiInput] = useState('');
   const [savingUpi, setSavingUpi] = useState(false);
   const [upiSaved, setUpiSaved] = useState(false);
+  const [upiError, setUpiError] = useState('');
+  const UPI_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/;
 
   const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -81,11 +83,17 @@ export default function OwnerDashboard() {
   }, [navigate]);
 
   const handleSaveUpi = async () => {
+    setUpiError('');
+    if (!upiInput.trim()) { setUpiError('UPI ID cannot be empty.'); return; }
+    if (!UPI_REGEX.test(upiInput.trim())) {
+      setUpiError('Invalid UPI ID. Format: yourname@bankname (e.g. name@upi, 9876543210@paytm)');
+      return;
+    }
     setSavingUpi(true);
     setUpiSaved(false);
     try {
-      await axios.put(`${BASE}/users/upi`, { upiId: upiInput }, { withCredentials: true });
-      setUpiId(upiInput);
+      await axios.put(`${BASE}/users/upi`, { upiId: upiInput.trim() }, { withCredentials: true });
+      setUpiId(upiInput.trim());
       setUpiSaved(true);
       setTimeout(() => setUpiSaved(false), 3000);
     } catch { /* ignore */ } finally { setSavingUpi(false); }
@@ -324,9 +332,10 @@ export default function OwnerDashboard() {
                 <input
                   type="text"
                   value={upiInput}
-                  onChange={(e) => setUpiInput(e.target.value)}
+                  onChange={(e) => { setUpiInput(e.target.value); setUpiError(''); }}
                   placeholder="yourname@upi"
-                  className="flex-1 border border-[#E0E0E0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2D6A4F]"
+                  className="flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2D6A4F]"
+                  style={{ borderColor: upiError ? '#C62828' : '#E0E0E0' }}
                 />
                 <button onClick={handleSaveUpi} disabled={savingUpi || upiInput === upiId}
                   className="px-5 py-2.5 rounded-xl font-bold text-sm text-white disabled:opacity-50"
@@ -334,7 +343,8 @@ export default function OwnerDashboard() {
                   {savingUpi ? 'Saving…' : upiSaved ? '✓ Saved' : 'Save'}
                 </button>
               </div>
-              {!upiId && (
+              {upiError && <p className="text-xs text-[#C62828] mt-2">⚠ {upiError}</p>}
+              {!upiId && !upiError && (
                 <p className="text-xs text-[#F57F17] mt-2">⚠ Add your UPI ID before requesting a payout.</p>
               )}
             </div>
