@@ -115,8 +115,8 @@ export default function Admin() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [specificDate, setSpecificDate] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [filesModal, setFilesModal] = useState<{ id: string; title: string; photos: string[]; docs: { name: string; url: string; ext: string }[] } | null>(null);
   const [filesLoading, setFilesLoading] = useState(false);
   const [editOrder, setEditOrder] = useState<AdminOrder | null>(null);
@@ -147,15 +147,8 @@ export default function Admin() {
         const p = new URLSearchParams();
         if (statusFilter) p.set('status', statusFilter);
         if (search)       p.set('search', search);
-        if (specificDate) {
-          // exact day: from 00:00:00 to 23:59:59 local time
-          p.set('from', new Date(specificDate + 'T00:00:00').toISOString());
-          p.set('to',   new Date(specificDate + 'T23:59:59').toISOString());
-        } else if (dateFilter === 'this_week') {
-          const d = new Date(); d.setDate(d.getDate() - 7); p.set('from', d.toISOString());
-        } else if (dateFilter === 'last_month') {
-          const d = new Date(); d.setMonth(d.getMonth() - 1); p.set('from', d.toISOString());
-        }
+        if (fromDate) p.set('from', new Date(fromDate + 'T00:00:00Z').toISOString());
+        if (toDate)   p.set('to',   new Date(toDate   + 'T23:59:59Z').toISOString());
         const qs = p.toString();
         const res = await fetch(`${BASE}/admin/listings${qs ? '?' + qs : ''}`, { ...jsonOpts });
         if (res.ok) setListings(await res.json());
@@ -177,10 +170,10 @@ export default function Admin() {
         if (res.ok) setPayouts(await res.json());
       }
     } finally { setLoading(false); }
-  }, [tab, statusFilter, search, roleFilter, dateFilter, specificDate]);
+  }, [tab, statusFilter, search, roleFilter, fromDate, toDate]);
 
   useEffect(() => { fetchSummary(); }, []);
-  useEffect(() => { fetchTab(tab); }, [tab, statusFilter, roleFilter, dateFilter, specificDate]);
+  useEffect(() => { fetchTab(tab); }, [tab, statusFilter, roleFilter, fromDate, toDate]);
 
   const approve = async (id: string) => {
     await fetch(`${BASE}/admin/listings/${id}/approve`, { method: 'POST', ...jsonOpts });
@@ -378,7 +371,7 @@ export default function Admin() {
           {/* Tabs */}
           <div className="flex gap-0 border-b border-[#E0E0E0]">
             {TABS.map(t => (
-              <button key={t.key} onClick={() => { setTab(t.key); setStatusFilter(''); setSearch(''); setRoleFilter(''); setDateFilter(''); setSpecificDate(''); }}
+              <button key={t.key} onClick={() => { setTab(t.key); setStatusFilter(''); setSearch(''); setRoleFilter(''); setFromDate(''); setToDate(''); }}
                 className="px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap"
                 style={{ borderColor: tab === t.key ? '#2D6A4F' : 'transparent', color: tab === t.key ? '#2D6A4F' : '#999' }}>
                 {t.label} <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#555]">{t.count}</span>
@@ -417,18 +410,24 @@ export default function Admin() {
               <option value="">All statuses</option>
               {['pending','active','rented','rejected','sold'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={dateFilter} onChange={e => { setDateFilter(e.target.value); setSpecificDate(''); }}
-              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
-              style={{ borderColor: '#E0E0E0' }}>
-              <option value="">All time</option>
-              <option value="this_week">This week</option>
-              <option value="last_month">Last month</option>
-            </select>
-            <input type="date" value={specificDate}
-              onChange={e => { setSpecificDate(e.target.value); setDateFilter(''); }}
-              title="Filter by exact date"
-              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
-              style={{ borderColor: specificDate ? '#2D6A4F' : '#E0E0E0' }} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#999] font-medium">From</span>
+              <input type="date" value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                style={{ borderColor: fromDate ? '#2D6A4F' : '#E0E0E0' }} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#999] font-medium">To</span>
+              <input type="date" value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className="border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+                style={{ borderColor: toDate ? '#2D6A4F' : '#E0E0E0' }} />
+            </div>
+            {(fromDate || toDate) && (
+              <button onClick={() => { setFromDate(''); setToDate(''); }}
+                className="text-xs text-[#C62828] font-semibold px-2 py-1 rounded-lg hover:bg-[#FFEBEE]">✕ Clear</button>
+            )}
           </>)}
           {tab === 'orders' && (
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
