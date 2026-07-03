@@ -51,7 +51,7 @@ builder.Services.AddSwaggerGen();
 
 // ── CORS — explicit origins required when AllowCredentials() is used ──────────
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5173", "https://p2p.voorent.com" };
+    ?? new[] { "http://localhost:5173", "https://p2p.voorent.com", "https://p2p.voorent.com." };
 
 builder.Services.AddCors(opt => opt.AddDefaultPolicy(p =>
     p.WithOrigins(allowedOrigins)
