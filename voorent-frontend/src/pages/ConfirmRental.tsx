@@ -125,6 +125,21 @@ export default function ConfirmRental() {
                 </div>
               </label>
             </div>
+
+            {/* Buy contact card */}
+            <div className="mt-4 rounded-2xl p-4 flex gap-3" style={{ background: '#F0FAF5', border: '2px solid #2D6A4F' }}>
+              <span className="text-xl flex-shrink-0">🛒</span>
+              <div>
+                <p className="font-bold text-[#1A1A1A] mb-1">Want to buy this item?</p>
+                <p className="text-sm text-[#555]">
+                  Contact us at{' '}
+                  <a href="mailto:support@voorent.com" className="font-semibold" style={{ color: '#2D6A4F' }}>support@voorent.com</a>
+                  {' '}or call{' '}
+                  <a href="tel:9318397171" className="font-semibold" style={{ color: '#2D6A4F' }}>9318397171</a>
+                  {' '}and we'll arrange it for you.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* RIGHT — Summary + CTA */}
