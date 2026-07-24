@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import { getListings } from '../services/api';
 import type { Listing } from '../types';
+import { SERVICEABLE_PINCODES, isDelhibNCRPincode } from '../utils/pincodes';
 
 async function geocodePincode(pincode: string): Promise<{ lat: number; lng: number; label: string } | null> {
   try {
@@ -74,6 +75,7 @@ export default function Home() {
   const [pincodeInput, setPincodeInput] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
   const [showPincodeInput, setShowPincodeInput] = useState(false);
+  const [pincodeError, setPincodeError] = useState('');
 
   const saveLocation = (lat: number, lng: number, label: string) => {
     setUserLat(lat); setUserLng(lng); setLocationLabel(label);
@@ -102,11 +104,17 @@ export default function Home() {
   };
 
   const handlePincodeSubmit = async () => {
-    if (!/^\d{6}$/.test(pincodeInput)) return;
+    if (!/^\d{6}$/.test(pincodeInput)) { setPincodeError('Enter a valid 6-digit pincode.'); return; }
+    // Block unserviceable areas up front so users aren't sent to an area we don't cover.
+    if (!isDelhibNCRPincode(pincodeInput)) {
+      setPincodeError('Sorry, we currently serve Delhi NCR only — Delhi, Gurugram, Noida, Ghaziabad & Faridabad.');
+      return;
+    }
+    setPincodeError('');
     setLocationLoading(true);
     const result = await geocodePincode(pincodeInput);
     setLocationLoading(false);
-    if (!result) { alert('Pincode not found. Please try another.'); return; }
+    if (!result) { setPincodeError('Pincode not found. Please pick one from the list.'); return; }
     saveLocation(result.lat, result.lng, result.label);
     setShowPincodeInput(false);
     setPincodeInput('');
@@ -142,21 +150,30 @@ export default function Home() {
               </button>
               <span className="text-xs text-[#999]">or</span>
               {showPincodeInput ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text" inputMode="numeric" maxLength={6} placeholder="Enter pincode"
-                    value={pincodeInput}
-                    onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={(e) => e.key === 'Enter' && handlePincodeSubmit()}
-                    className="border-2 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-[#2D6A4F] w-32"
-                    style={{ borderColor: '#E0E0E0' }} autoFocus
-                  />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col">
+                    <input
+                      type="text" inputMode="numeric" list="voorent-serviceable-pincodes"
+                      maxLength={6} placeholder="Search area or pincode"
+                      value={pincodeInput}
+                      onChange={(e) => { setPincodeInput(e.target.value.replace(/\D/g, '')); setPincodeError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handlePincodeSubmit()}
+                      className="border-2 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-[#2D6A4F] w-44"
+                      style={{ borderColor: pincodeError ? '#D62828' : '#E0E0E0' }} autoFocus
+                    />
+                    <datalist id="voorent-serviceable-pincodes">
+                      {SERVICEABLE_PINCODES.map((p) => (
+                        <option key={p.pincode} value={p.pincode}>{p.area}</option>
+                      ))}
+                    </datalist>
+                  </div>
                   <button onClick={handlePincodeSubmit} disabled={locationLoading || pincodeInput.length !== 6}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold text-white disabled:opacity-40"
                     style={{ background: '#2D6A4F' }}>
                     {locationLoading ? '…' : 'Go'}
                   </button>
-                  <button onClick={() => setShowPincodeInput(false)} className="text-xs text-[#999]">✕</button>
+                  <button onClick={() => { setShowPincodeInput(false); setPincodeError(''); }} className="text-xs text-[#999]">✕</button>
+                  {pincodeError && <p className="w-full text-xs text-[#D62828] font-semibold mt-1">{pincodeError}</p>}
                 </div>
               ) : (
                 <button onClick={() => setShowPincodeInput(true)}

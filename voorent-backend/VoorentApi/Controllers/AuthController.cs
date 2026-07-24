@@ -22,6 +22,17 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         if (string.IsNullOrWhiteSpace(req.Phone) || req.Phone.Length != 10)
             return BadRequest("Invalid phone number.");
 
+        // (phone, email) is the unique identity. If this phone is already registered
+        // with a different email, reject early so the user sees "wrong phone/email"
+        // before an OTP is sent. New phones and email-less legacy accounts pass through.
+        var providedEmail = req.Email?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(providedEmail))
+        {
+            var existing = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
+            if (existing != null && !string.IsNullOrEmpty(existing.Email) && existing.Email != providedEmail)
+                return BadRequest("This phone number is registered with a different email. Please enter the correct email.");
+        }
+
         // Invalidate old unused OTPs for this number
         var old = await db.OtpTokens.Where(o => o.Phone == req.Phone && !o.Used).ToListAsync();
         old.ForEach(o => o.Used = true);
@@ -162,18 +173,36 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
 
         if (token.Code != req.Otp) { await db.SaveChangesAsync(); return Unauthorized("Incorrect OTP."); }
 
-        token.Used = true;
-
-        // Upsert user
+        // Resolve account. Phone possession is proven by the OTP; email is the second
+        // half of the unique identity. (Don't consume the OTP until identity checks pass.)
+        var providedEmail = req.Email?.Trim().ToLowerInvariant();
         var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
         var isNewUser = user == null;
         if (user == null)
         {
+            // Brand-new phone → create the (phone, email) pair.
             user = new User { Phone = req.Phone };
-            if (!string.IsNullOrWhiteSpace(req.Email))
-                user.Email = req.Email.Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(providedEmail))
+                user.Email = providedEmail;
             db.Users.Add(user);
         }
+        else if (string.IsNullOrEmpty(user.Email))
+        {
+            // Legacy account with no email on file → backfill it now.
+            if (!string.IsNullOrWhiteSpace(providedEmail))
+            {
+                user.Email = providedEmail;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(providedEmail) && user.Email != providedEmail)
+        {
+            // Phone is registered with a different email → reject without burning the OTP.
+            // Use 400 (not 401) so the SPA's 401 interceptor doesn't force a /login reload.
+            return BadRequest("This phone number is registered with a different email. Please enter the correct email.");
+        }
+
+        token.Used = true;
 
         // Auto-upgrade role: if user has listings but JWT still says "customer", fix it
         if (user.Role == "customer")

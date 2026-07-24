@@ -1,13 +1,23 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { sendOtp, verifyOtp } from '../services/api';
 import api from '../services/api';
 import { setUserInfo } from '../utils/auth';
 
 type Step = 'phone' | 'otp' | 'profile';
 
+// Pull a human-readable error message out of an axios error (server returns a plain string body).
+function serverMessage(err: unknown): string {
+  const data = (err as { response?: { data?: unknown } })?.response?.data;
+  return typeof data === 'string' ? data : '';
+}
+
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Where to send the user after login. Only allow internal paths (guard against open redirects).
+  const redirectParam = searchParams.get('redirect');
+  const redirectTo = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/';
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -29,8 +39,8 @@ export default function Login() {
       await sendOtp(phone, email.trim() || undefined);
       setStep('otp');
       startResendTimer();
-    } catch {
-      setError('Failed to send OTP — please try again.');
+    } catch (err) {
+      setError(serverMessage(err) || 'Failed to send OTP — please try again.');
     } finally { setLoading(false); }
   };
 
@@ -44,10 +54,10 @@ export default function Login() {
       if (res.data.isNewUser) {
         setStep('profile');
       } else {
-        navigate('/');
+        navigate(redirectTo);
       }
-    } catch {
-      setError('Incorrect OTP — try again.');
+    } catch (err) {
+      setError(serverMessage(err) || 'Incorrect OTP — try again.');
     } finally { setLoading(false); }
   };
 
@@ -58,7 +68,7 @@ export default function Login() {
     setLoading(true); setError('');
     try {
       await api.put('/users/profile', { name: name.trim(), email: email.trim() });
-      navigate('/');
+      navigate(redirectTo);
     } catch {
       setError('Could not save profile — please try again.');
     } finally { setLoading(false); }

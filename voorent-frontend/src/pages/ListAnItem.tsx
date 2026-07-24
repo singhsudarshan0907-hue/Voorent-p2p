@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import axios from 'axios';
 import { isDelhibNCRPincode } from '../utils/pincodes';
+import { isLoggedIn } from '../utils/auth';
 
 type Category  = 'Furniture' | 'Appliances' | 'Electronics';
 type Condition = 'Like New' | 'Good' | 'Acceptable';
@@ -30,6 +31,13 @@ const STEPS = ['Item Details', 'Add Photos', 'Set Price', 'Verify Ownership'];
 
 export default function ListAnItem() {
   const navigate = useNavigate();
+
+  // Listing requires auth (POST /listings is [Authorize]). Send guests to login first,
+  // then bring them back here — instead of letting them fill the whole form and hit an error.
+  useEffect(() => {
+    if (!isLoggedIn()) navigate('/login?redirect=/list', { replace: true });
+  }, [navigate]);
+
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>({
     category: 'Furniture',
@@ -320,25 +328,43 @@ export default function ListAnItem() {
                   <p className="text-sm text-[#555] mb-5">Show what you're listing. Good photos attract renters faster.</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <label key={i} className="rounded-xl border-2 border-dashed overflow-hidden cursor-pointer hover:border-[#2D6A4F] transition-colors"
+                      <div key={i} className="rounded-xl border-2 border-dashed overflow-hidden relative transition-colors"
                         style={{ aspectRatio: '1', borderColor: photos[i] ? '#2D6A4F' : '#E0E0E0', background: photos[i] ? '#F0FAF5' : '#FAFAFA' }}>
-                        <input type="file" accept="image/*" className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                              const next = [...photos]; next[i] = e.target.files[0]; setPhotos(next);
-                            }
-                          }} />
-                        {photos[i]
-                          ? <img src={URL.createObjectURL(photos[i])} className="w-full h-full object-cover" alt="" />
-                          : <div className="w-full h-full flex flex-col items-center justify-center">
-                              <span className="text-3xl text-[#999]">+</span>
-                              <span className="text-xs text-[#999] mt-1">Add photo</span>
-                            </div>
-                        }
-                      </label>
+                        {photos[i] ? (
+                          <>
+                            <img src={URL.createObjectURL(photos[i])} className="w-full h-full object-cover" alt="" />
+                            <button type="button"
+                              onClick={() => { const next = [...photos]; delete next[i]; setPhotos(next); }}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 text-[#D62828] text-sm font-bold shadow flex items-center justify-center">
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 px-2">
+                            {/* Gallery — pick an existing photo */}
+                            <label className="flex flex-col items-center cursor-pointer hover:opacity-80">
+                              <input type="file" accept="image/*" className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) { const next = [...photos]; next[i] = e.target.files[0]; setPhotos(next); }
+                                }} />
+                              <span className="text-2xl leading-none">🖼️</span>
+                              <span className="text-[11px] text-[#555] font-semibold mt-1">Gallery</span>
+                            </label>
+                            {/* Camera — capture directly (opens camera on mobile) */}
+                            <label className="flex flex-col items-center cursor-pointer hover:opacity-80">
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) { const next = [...photos]; next[i] = e.target.files[0]; setPhotos(next); }
+                                }} />
+                              <span className="text-2xl leading-none">📷</span>
+                              <span className="text-[11px] text-[#555] font-semibold mt-1">Camera</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
-                  <p className="text-xs text-[#999] mt-4 text-center">Min 1 photo · Max 8 · JPG/PNG up to 10MB each</p>
+                  <p className="text-xs text-[#999] mt-4 text-center">Min 1 photo · Max 8 · JPG/PNG up to 10MB each · Gallery or Camera</p>
                   {errors.photos && <p className="text-xs text-[#D62828] mt-2 text-center font-semibold">{errors.photos}</p>}
 
                 </div>
