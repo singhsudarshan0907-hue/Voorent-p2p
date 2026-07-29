@@ -257,6 +257,10 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
             }
         }
 
+        // Internal ops alert to alerts@voorent.com on every new signup (fire-and-forget)
+        if (isNewUser)
+            _ = email.NewUserRegisteredAlertAsync(user.Phone, user.Name, user.Email);
+
         // isNewUser = true means frontend should show profile step (name + email)
         var needsProfile = isNewUser || string.IsNullOrEmpty(user.Name);
         var jwt = GenerateJwt(user);

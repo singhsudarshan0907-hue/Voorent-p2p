@@ -165,6 +165,36 @@ public class Coupon
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// Record of an item being sold — either bought by Voorent from the owner
+/// ("voorent") or sold to an outside buyer ("external"). One row per sale.
+/// </summary>
+public class ItemSale
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ListingId { get; set; }
+    public Listing? Listing { get; set; }
+    public Guid OwnerId { get; set; }        // the user who owned the item
+    public User? Owner { get; set; }
+
+    public string SaleType { get; set; } = "voorent";   // voorent | external
+    [Column(TypeName = "numeric(10,2)")] public decimal SalePrice { get; set; }  // agreed sale amount
+
+    // For "voorent" sales — what Voorent pays the owner
+    [Column(TypeName = "numeric(10,2)")] public decimal PayoutAmount { get; set; }
+    public string PaymentMethod { get; set; } = "cash";  // cash | upi | bank
+    public string PaymentStatus { get; set; } = "pending"; // pending | paid
+    public DateTime? PaidAt { get; set; }
+
+    // For "external" sales — who bought it
+    [MaxLength(100)] public string? BuyerName { get; set; }
+    [MaxLength(15)]  public string? BuyerPhone { get; set; }
+
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class Payment
 {
     public Guid Id { get; set; } = Guid.NewGuid();

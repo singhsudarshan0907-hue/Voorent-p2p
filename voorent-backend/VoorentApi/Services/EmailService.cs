@@ -15,8 +15,21 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
     private readonly string? _user  = config["Smtp:Username"];
     private readonly string? _pass  = config["Smtp:Password"];
     private readonly string? _from  = config["Smtp:From"];
+    // Internal ops inbox for admin alerts (new signups, etc). Defaults to alerts@voorent.com.
+    private readonly string  _alertsTo = config["Smtp:AlertsTo"] ?? "alerts@voorent.com";
 
     // ── Public helpers ────────────────────────────────────────────────────────
+
+    /// <summary>Internal alert to the Voorent ops inbox whenever a new user registers.</summary>
+    public Task NewUserRegisteredAlertAsync(string phone, string? name, string? userEmail)
+    {
+        var when = DateTime.UtcNow.AddHours(5.5).ToString("dd MMM yyyy, hh:mm tt"); // IST
+        return SendAsync(
+            to:      _alertsTo,
+            subject: $"🆕 New Voorent signup — {(string.IsNullOrWhiteSpace(name) ? phone : name)}",
+            body:    NewUserAlertBody(phone, name, userEmail, when)
+        );
+    }
 
     /// <summary>Welcome email sent to a new user after first login / profile setup.</summary>
     public Task WelcomeAsync(string toEmail, string name)
@@ -351,6 +364,35 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Issues with your delivery? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>.
 </p>
+{Footer()}";
+
+    private static string NewUserAlertBody(string phone, string? name, string? userEmail, string when) => $@"
+{Header()}
+<div style='background:#F0FAF5;border-radius:12px;padding:16px 20px;margin-bottom:24px'>
+  <span style='font-size:26px'>🆕</span>
+  <span style='font-weight:700;color:#1B4332;font-size:17px;margin-left:10px;vertical-align:middle'>New user registered</span>
+</div>
+<table width='100%' cellpadding='0' cellspacing='0' style='border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;margin-bottom:24px;font-size:14px'>
+  <tr style='background:#F9F9F9'>
+    <td style='padding:13px 16px;color:#777;font-size:13px;width:40%'>Name</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600'>{(string.IsNullOrWhiteSpace(name) ? "—" : name)}</td>
+  </tr>
+  <tr>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Phone</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600;border-top:1px solid #F0F0F0'>{phone}</td>
+  </tr>
+  <tr style='background:#F9F9F9'>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Email</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600;border-top:1px solid #F0F0F0'>{(string.IsNullOrWhiteSpace(userEmail) ? "—" : userEmail)}</td>
+  </tr>
+  <tr>
+    <td style='padding:13px 16px;color:#777;font-size:13px;border-top:1px solid #F0F0F0'>Registered</td>
+    <td style='padding:13px 16px;color:#1A1A1A;font-weight:600;border-top:1px solid #F0F0F0'>{when} IST</td>
+  </tr>
+</table>
+<div style='text-align:center;margin-bottom:24px'>
+  <a href='https://p2p.voorent.com/admin' {CtaStyle()}>Open Admin Dashboard →</a>
+</div>
 {Footer()}";
 
     // ── Shared layout components ──────────────────────────────────────────────

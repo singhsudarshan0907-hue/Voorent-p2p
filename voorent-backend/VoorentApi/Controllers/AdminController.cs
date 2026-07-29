@@ -179,6 +179,114 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         return Ok(new { photos, docs, title = listing.Title });
     }
 
+    // ── Mark item SOLD — to Voorent or to an outside buyer ───────────────────
+    [HttpPost("listings/{id:guid}/sell")]
+    public async Task<IActionResult> SellListing(Guid id, [FromBody] SellRequest req)
+    {
+        var listing = await db.Listings.Include(l => l.Owner).FirstOrDefaultAsync(l => l.Id == id);
+        if (listing == null) return NotFound();
+
+        var saleType = (req.SaleType ?? "voorent").ToLowerInvariant();
+        if (saleType != "voorent" && saleType != "external") saleType = "voorent";
+
+        var sale = new ItemSale
+        {
+            ListingId     = listing.Id,
+            OwnerId       = listing.OwnerId,
+            SaleType      = saleType,
+            SalePrice     = req.SalePrice,
+            PayoutAmount  = saleType == "voorent" ? req.PayoutAmount ?? req.SalePrice : 0,
+            PaymentMethod = saleType == "voorent" ? (req.PaymentMethod ?? "cash").ToLowerInvariant() : "cash",
+            PaymentStatus = saleType == "voorent" ? "pending" : "paid",
+            BuyerName     = saleType == "external" ? req.BuyerName : null,
+            BuyerPhone    = saleType == "external" ? req.BuyerPhone : null,
+            Notes         = req.Notes,
+        };
+        db.ItemSales.Add(sale);
+
+        listing.Status      = "sold";
+        listing.IsAvailable = false;
+        listing.UpdatedAt   = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Item marked as sold.", saleId = sale.Id });
+    }
+
+    // ── GET all sold items (the "Sold" list) ─────────────────────────────────
+    [HttpGet("sales")]
+    public async Task<IActionResult> GetSales([FromQuery] string? type, [FromQuery] string? paymentStatus)
+    {
+        var q = db.ItemSales
+            .Include(s => s.Listing).ThenInclude(l => l!.Images)
+            .Include(s => s.Owner)
+            .AsQueryable();
+        if (!string.IsNullOrEmpty(type))          q = q.Where(s => s.SaleType == type);
+        if (!string.IsNullOrEmpty(paymentStatus)) q = q.Where(s => s.PaymentStatus == paymentStatus);
+
+        var sales = await q.OrderByDescending(s => s.CreatedAt).ToListAsync();
+        return Ok(sales.Select(s => new
+        {
+            s.Id, s.SaleType, s.SalePrice, s.PayoutAmount, s.PaymentMethod, s.PaymentStatus,
+            s.PaidAt, s.BuyerName, s.BuyerPhone, s.Notes, s.CreatedAt,
+            ListingId    = s.ListingId,
+            ListingTitle = s.Listing?.Title ?? "—",
+            ImageUrl     = s.Listing?.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
+            OwnerName    = s.Owner?.Name ?? "",
+            OwnerPhone   = s.Owner?.Phone ?? "",
+            OwnerUpi     = s.Owner?.UpiId ?? "",
+        }));
+    }
+
+    // ── Mark the owner payout for a Voorent purchase as PAID ─────────────────
+    [HttpPost("sales/{id:guid}/pay")]
+    public async Task<IActionResult> MarkSalePaid(Guid id)
+    {
+        var sale = await db.ItemSales.FindAsync(id);
+        if (sale == null) return NotFound();
+        sale.PaymentStatus = "paid";
+        sale.PaidAt        = DateTime.UtcNow;
+        sale.UpdatedAt     = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Payment marked as paid." });
+    }
+
+    // ── Edit a sale record (amount, method, notes, status) ───────────────────
+    [HttpPut("sales/{id:guid}")]
+    public async Task<IActionResult> EditSale(Guid id, [FromBody] EditSaleRequest req)
+    {
+        var sale = await db.ItemSales.FindAsync(id);
+        if (sale == null) return NotFound();
+        if (req.SalePrice.HasValue)     sale.SalePrice     = req.SalePrice.Value;
+        if (req.PayoutAmount.HasValue)  sale.PayoutAmount  = req.PayoutAmount.Value;
+        if (req.PaymentMethod != null)  sale.PaymentMethod = req.PaymentMethod.ToLowerInvariant();
+        if (req.Notes != null)          sale.Notes         = req.Notes;
+        if (req.PaymentStatus != null)
+        {
+            sale.PaymentStatus = req.PaymentStatus.ToLowerInvariant();
+            sale.PaidAt = sale.PaymentStatus == "paid" ? (sale.PaidAt ?? DateTime.UtcNow) : null;
+        }
+        sale.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Sale updated." });
+    }
+
+    // ── Revert a sale — deletes the sale record, puts item back to active ────
+    [HttpPost("sales/{id:guid}/revert")]
+    public async Task<IActionResult> RevertSale(Guid id)
+    {
+        var sale = await db.ItemSales.Include(s => s.Listing).FirstOrDefaultAsync(s => s.Id == id);
+        if (sale == null) return NotFound();
+        if (sale.Listing != null)
+        {
+            sale.Listing.Status      = "active";
+            sale.Listing.IsAvailable = true;
+            sale.Listing.UpdatedAt   = DateTime.UtcNow;
+        }
+        db.ItemSales.Remove(sale);
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Sale reverted. Item is active again." });
+    }
+
     // ── GET all users ─────────────────────────────────────────────────────────
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers([FromQuery] string? search, [FromQuery] string? role)
@@ -440,6 +548,8 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
             ActiveOrders  = await db.Rentals.CountAsync(r => r.Status == "ACTIVE"),
             TotalInvoices = await db.Invoices.CountAsync(),
             TotalRevenue  = await db.Invoices.Where(i => i.Status == "paid").SumAsync(i => (decimal?)i.Amount) ?? 0,
+            TotalSold     = await db.ItemSales.CountAsync(),
+            PendingSalePayouts = await db.ItemSales.CountAsync(s => s.SaleType == "voorent" && s.PaymentStatus == "pending"),
         });
     }
 
@@ -564,3 +674,5 @@ public record EditInvoiceRequest(decimal? Amount, DateTime? PaidAt, DateTime? Du
 public record EditOrderRequest(string? DeliveryAddress, decimal? MonthlyAmount);
 public record ApplyCouponRequest(string Code);
 public record CreateCouponRequest(string Code, string DiscountType, decimal DiscountValue, int? MaxUses, DateTime? ExpiresAt);
+public record SellRequest(string? SaleType, decimal SalePrice, decimal? PayoutAmount, string? PaymentMethod, string? BuyerName, string? BuyerPhone, string? Notes);
+public record EditSaleRequest(decimal? SalePrice, decimal? PayoutAmount, string? PaymentMethod, string? PaymentStatus, string? Notes);

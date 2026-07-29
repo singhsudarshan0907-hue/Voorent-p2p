@@ -10,12 +10,20 @@ const jsonHeaders = { 'Content-Type': 'application/json' };
 const jsonOpts    = { credentials: 'include' as RequestCredentials };
 const headers     = { ...jsonHeaders };  // GET requests (no body)
 
-type Tab = 'listings' | 'users' | 'orders' | 'invoices' | 'payouts';
+type Tab = 'listings' | 'users' | 'orders' | 'invoices' | 'payouts' | 'sold';
 
 interface Summary {
   totalUsers: number; totalListings: number; pendingItems: number;
   activeItems: number; totalOrders: number; activeOrders: number;
   totalInvoices: number; totalRevenue: number;
+  totalSold?: number; pendingSalePayouts?: number;
+}
+interface AdminSale {
+  id: string; saleType: string; salePrice: number; payoutAmount: number;
+  paymentMethod: string; paymentStatus: string; paidAt: string | null;
+  buyerName: string | null; buyerPhone: string | null; notes: string | null;
+  createdAt: string; listingId: string; listingTitle: string; imageUrl: string;
+  ownerName: string; ownerPhone: string; ownerUpi: string;
 }
 interface AdminListing {
   id: string; title: string; category: string; condition: string;
@@ -121,6 +129,9 @@ export default function Admin() {
   const [filesLoading, setFilesLoading] = useState(false);
   const [editOrder, setEditOrder] = useState<AdminOrder | null>(null);
   const [editOrderForm, setEditOrderForm] = useState({ deliveryAddress: '', monthlyAmount: '' });
+  const [sales, setSales] = useState<AdminSale[]>([]);
+  const [sellItem, setSellItem] = useState<AdminListing | null>(null);
+  const [sellForm, setSellForm] = useState({ saleType: 'voorent', salePrice: '', payoutAmount: '', paymentMethod: 'cash', buyerName: '', buyerPhone: '', notes: '' });
 
   const BACKEND = BASE.replace('/api', '');
 
@@ -168,6 +179,9 @@ export default function Admin() {
       } else if (t === 'payouts') {
         const res = await fetch(`${BASE}/admin/payouts${statusFilter ? `?status=${statusFilter}` : ''}`, { ...jsonOpts });
         if (res.ok) setPayouts(await res.json());
+      } else if (t === 'sold') {
+        const res = await fetch(`${BASE}/admin/sales${statusFilter ? `?paymentStatus=${statusFilter}` : ''}`, { ...jsonOpts });
+        if (res.ok) setSales(await res.json());
       }
     } finally { setLoading(false); }
   }, [tab, statusFilter, search, roleFilter, fromDate, toDate]);
@@ -195,6 +209,38 @@ export default function Admin() {
       body: JSON.stringify({ title: editListing.title, status: editListing.status, itemPrice: editListing.itemPrice, pincode: editListing.pincode || null }),
     });
     setEditListing(null); fetchTab('listings');
+  };
+
+  const openSell = (l: AdminListing) => {
+    setSellItem(l);
+    setSellForm({ saleType: 'voorent', salePrice: String(l.itemPrice ?? ''), payoutAmount: String(l.itemPrice ?? ''), paymentMethod: 'cash', buyerName: '', buyerPhone: '', notes: '' });
+  };
+  const submitSell = async () => {
+    if (!sellItem) return;
+    const price = parseFloat(sellForm.salePrice);
+    if (!price || price <= 0) { alert('Enter a valid sale price.'); return; }
+    const body = {
+      saleType: sellForm.saleType,
+      salePrice: price,
+      payoutAmount: sellForm.saleType === 'voorent' ? parseFloat(sellForm.payoutAmount || sellForm.salePrice) : null,
+      paymentMethod: sellForm.paymentMethod,
+      buyerName: sellForm.saleType === 'external' ? sellForm.buyerName : null,
+      buyerPhone: sellForm.saleType === 'external' ? sellForm.buyerPhone : null,
+      notes: sellForm.notes || null,
+    };
+    const res = await fetch(`${BASE}/admin/listings/${sellItem.id}/sell`, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (res.ok) { setSellItem(null); fetchTab('listings'); fetchSummary(); }
+    else alert('Failed to mark sold.');
+  };
+  const markSalePaid = async (id: string) => {
+    if (!confirm('Mark this payout to the owner as PAID?')) return;
+    await fetch(`${BASE}/admin/sales/${id}/pay`, { method: 'POST', ...jsonOpts });
+    fetchTab('sold'); fetchSummary();
+  };
+  const revertSale = async (id: string) => {
+    if (!confirm('Revert this sale? The item goes back to active and the sale record is deleted.')) return;
+    await fetch(`${BASE}/admin/sales/${id}/revert`, { method: 'POST', ...jsonOpts });
+    fetchTab('sold'); fetchSummary();
   };
 
   const deliverOrder = async (id: string) => {
@@ -331,6 +377,7 @@ export default function Admin() {
     { key: 'orders',   label: '🛒 Orders',   count: summary?.totalOrders ?? 0 },
     { key: 'invoices', label: '🧾 Invoices', count: summary?.totalInvoices ?? 0 },
     { key: 'payouts',  label: '💰 Payouts',  count: payouts.length },
+    { key: 'sold',     label: '🏷️ Sold',      count: summary?.totalSold ?? sales.length },
   ];
 
   // ── Admin Gate — server enforces [Authorize(Roles="admin")] on all /api/admin/* ──
@@ -453,6 +500,14 @@ export default function Admin() {
               {['pending','paid'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
+          {tab === 'sold' && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="border-2 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#2D6A4F]"
+              style={{ borderColor: '#E0E0E0' }}>
+              <option value="">All payments</option>
+              {['pending','paid'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
           <button onClick={() => fetchTab(tab)}
             className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
             Refresh
@@ -510,6 +565,12 @@ export default function Admin() {
                         style={{ borderColor: '#E0E0E0', color: '#555' }}>
                         ✏ Edit
                       </button>
+                      {l.status !== 'sold' && (
+                        <button onClick={() => openSell(l)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#E07B00' }}>
+                          🏷️ Sell
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -801,7 +862,7 @@ export default function Admin() {
             </div>
 
           /* ── PAYOUTS TAB ── */
-          ) : (
+          ) : tab === 'payouts' ? (
             <div className="bg-white rounded-2xl border border-[#E0E0E0] overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -857,6 +918,65 @@ export default function Admin() {
               </table>
               {payouts.length === 0 && <p className="text-center text-[#999] py-20">No payouts yet</p>}
             </div>
+
+          /* ── SOLD TAB ── */
+          ) : (
+            <div className="space-y-3">
+              {sales.map(s => {
+                const isVoorent = s.saleType === 'voorent';
+                const paid = s.paymentStatus === 'paid';
+                return (
+                  <div key={s.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 flex gap-4 items-start">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#F3F4F6] flex-shrink-0 flex items-center justify-center text-2xl">
+                      {s.imageUrl ? <img src={s.imageUrl.startsWith('http') ? s.imageUrl : `${BACKEND}${s.imageUrl}`} className="w-full h-full object-cover" alt="" /> : '🏷️'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1 flex-wrap">
+                        <p className="font-bold text-[#1A1A1A] leading-snug">{s.listingTitle}</p>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                          style={{ background: isVoorent ? '#FFF3E0' : '#E3F2FD', color: isVoorent ? '#E07B00' : '#1565C0' }}>
+                          {isVoorent ? 'Sold to Voorent' : 'Sold to buyer'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#999] mb-1">
+                        Seller: {s.ownerName || '—'} ({s.ownerPhone})
+                        {isVoorent && s.ownerUpi ? ` · UPI: ${s.ownerUpi}` : ''}
+                      </p>
+                      <p className="text-xs text-[#555] mb-1">
+                        Sale price: <span className="font-bold text-[#1A1A1A]">₹{s.salePrice.toLocaleString()}</span>
+                        {isVoorent && <> · Voorent pays seller: <span className="font-bold text-[#1A1A1A]">₹{s.payoutAmount.toLocaleString()}</span> · {s.paymentMethod.toUpperCase()}</>}
+                        {!isVoorent && s.buyerName && <> · Buyer: {s.buyerName}{s.buyerPhone ? ` (${s.buyerPhone})` : ''}</>}
+                      </p>
+                      {s.notes && <p className="text-xs text-[#999] italic mb-1">“{s.notes}”</p>}
+                      <p className="text-xs text-[#999]">
+                        {new Date(s.createdAt).toLocaleDateString('en-IN')}
+                        {paid && s.paidAt ? ` · Paid ${new Date(s.paidAt).toLocaleDateString('en-IN')}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0 items-end">
+                      {isVoorent && (
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                          style={{ background: paid ? '#E8F5E9' : '#FFF8E1', color: paid ? '#2D6A4F' : '#F59E0B' }}>
+                          {paid ? '✓ Paid to seller' : '⏳ Payment pending'}
+                        </span>
+                      )}
+                      {isVoorent && !paid && (
+                        <button onClick={() => markSalePaid(s.id)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#2D6A4F' }}>
+                          Mark Paid
+                        </button>
+                      )}
+                      <button onClick={() => revertSale(s.id)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border-2"
+                        style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                        ↩ Revert
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {sales.length === 0 && <p className="text-center text-[#999] py-20">No sold items yet</p>}
+            </div>
           )
         )}
       </main>
@@ -905,6 +1025,93 @@ export default function Admin() {
               <button onClick={saveEditListing}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#2D6A4F' }}>
                 Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sell / Mark Sold Modal */}
+      {sellItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSellItem(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-1">Mark as Sold</h2>
+            <p className="text-xs text-[#999] mb-4">{sellItem.title} · Owner: {sellItem.ownerName} ({sellItem.ownerPhone})</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Sale type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { v: 'voorent',  label: 'Sold to Voorent', desc: 'Voorent buys it' },
+                    { v: 'external', label: 'Sold to buyer',   desc: 'Outside buyer' },
+                  ].map(o => (
+                    <button key={o.v} type="button" onClick={() => setSellForm({ ...sellForm, saleType: o.v })}
+                      className="rounded-xl border-2 px-3 py-2.5 text-left"
+                      style={{ borderColor: sellForm.saleType === o.v ? '#E07B00' : '#E0E0E0', background: sellForm.saleType === o.v ? '#FFF9F0' : '#fff' }}>
+                      <div className="text-sm font-bold text-[#1A1A1A]">{o.label}</div>
+                      <div className="text-xs text-[#999]">{o.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Sale price (₹)</label>
+                <input type="number" value={sellForm.salePrice}
+                  onChange={e => setSellForm({ ...sellForm, salePrice: e.target.value })}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+
+              {sellForm.saleType === 'voorent' ? (<>
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Amount Voorent pays the seller (₹)</label>
+                  <input type="number" value={sellForm.payoutAmount}
+                    onChange={e => setSellForm({ ...sellForm, payoutAmount: e.target.value })}
+                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Payment method</label>
+                  <select value={sellForm.paymentMethod} onChange={e => setSellForm({ ...sellForm, paymentMethod: e.target.value })}
+                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }}>
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="bank">Bank transfer</option>
+                  </select>
+                  <p className="text-xs text-[#999] mt-1">You can mark this Paid later from the Sold tab.</p>
+                </div>
+              </>) : (<>
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Buyer name (optional)</label>
+                  <input value={sellForm.buyerName}
+                    onChange={e => setSellForm({ ...sellForm, buyerName: e.target.value })}
+                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#555] mb-1 block">Buyer phone (optional)</label>
+                  <input value={sellForm.buyerPhone}
+                    onChange={e => setSellForm({ ...sellForm, buyerPhone: e.target.value })}
+                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                </div>
+              </>)}
+
+              <div>
+                <label className="text-xs font-semibold text-[#555] mb-1 block">Notes (optional)</label>
+                <textarea value={sellForm.notes} rows={2}
+                  onChange={e => setSellForm({ ...sellForm, notes: e.target.value })}
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setSellItem(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2" style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                Cancel
+              </button>
+              <button onClick={submitSell}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#E07B00' }}>
+                Confirm Sale
               </button>
             </div>
           </div>

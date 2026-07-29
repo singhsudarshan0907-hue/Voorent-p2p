@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<ItemSale> ItemSales => Set<ItemSale>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -71,6 +72,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         mb.Entity<Coupon>().ToTable("coupons");
         mb.Entity<Coupon>().HasIndex(c => c.Code).IsUnique();
+
+        mb.Entity<ItemSale>().ToTable("item_sales");
+        mb.Entity<ItemSale>()
+            .HasOne(s => s.Listing).WithMany().HasForeignKey(s => s.ListingId);
+        mb.Entity<ItemSale>()
+            .HasOne(s => s.Owner).WithMany().HasForeignKey(s => s.OwnerId);
 
         // Convert all column names to snake_case to match PostgreSQL
         foreach (var entity in mb.Model.GetEntityTypes())
