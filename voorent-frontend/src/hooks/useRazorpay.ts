@@ -51,6 +51,7 @@ export function useRazorpay() {
   const openCheckout = useCallback(async ({
     listingId,
     plan,
+    deliveryAddress,
     userPhone,
     userName,
     onSuccess,
@@ -59,6 +60,7 @@ export function useRazorpay() {
   }: {
     listingId: string;
     plan: PayPlan;
+    deliveryAddress: string;
     userPhone?: string;
     userName?: string;
     onSuccess?: (rentalId: string) => void;
@@ -73,10 +75,11 @@ export function useRazorpay() {
 
     let orderData;
     try {
-      const res = await createRazorpayOrder(listingId, plan);
+      const res = await createRazorpayOrder(listingId, plan, deliveryAddress);
       orderData = res.data;
-    } catch {
-      onError?.('Could not create payment order. Please try again.');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: string } })?.response?.data;
+      onError?.(typeof msg === 'string' && msg ? msg : 'Could not create payment order. Please try again.');
       return;
     }
 

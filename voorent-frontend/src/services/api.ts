@@ -74,7 +74,7 @@ export const contactVoorent = (context: string) =>
   api.post('/support/contact', { context });
 
 // Payments
-export const createRazorpayOrder = (listingId: string, plan: string) =>
+export const createRazorpayOrder = (listingId: string, plan: string, deliveryAddress: string) =>
   api.post<{
     orderId: string;
     amount: number;
@@ -83,7 +83,7 @@ export const createRazorpayOrder = (listingId: string, plan: string) =>
     plan: string;
     planLabel: string;
     prefill: { name: string; contact: string };
-  }>('/payments/create-order', { listingId, plan });
+  }>('/payments/create-order', { listingId, plan, deliveryAddress });
 
 export const verifyRazorpayPayment = (
   razorpayOrderId: string,

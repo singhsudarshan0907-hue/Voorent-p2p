@@ -28,6 +28,21 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
         if (listing is null) return NotFound("Listing not found");
         if (!listing.IsAvailable) return BadRequest("Item is no longer available");
 
+        // Delivery address is mandatory for a first order. Recurring monthly payments
+        // reuse the address already saved on the existing rental.
+        var deliveryAddress = req.DeliveryAddress?.Trim();
+        var existingRental = await db.Rentals
+            .FirstOrDefaultAsync(r => r.ListingId == req.ListingId && r.CustomerId == customerId);
+        if (existingRental is null)
+        {
+            if (string.IsNullOrWhiteSpace(deliveryAddress) || deliveryAddress.Length < 10)
+                return BadRequest("Please enter a complete delivery address (at least 10 characters).");
+        }
+        else if (string.IsNullOrWhiteSpace(deliveryAddress))
+        {
+            deliveryAddress = existingRental.DeliveryAddress;
+        }
+
         // Calculate amount in paise (Razorpay uses smallest currency unit)
         int amountPaise = req.Plan switch
         {
@@ -81,6 +96,7 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
             CustomerId      = customerId,
             AmountPaise     = amountPaise,
             Plan            = req.Plan,
+            DeliveryAddress = deliveryAddress,
             Status          = "created"
         };
         db.Payments.Add(payment);
@@ -270,6 +286,7 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
                 Status        = "PROCESSING",
                 StartDate     = startDate,
                 NextPayment   = startDate.AddMonths(1),  // month 2 due 1 month after delivery
+                DeliveryAddress = payment.DeliveryAddress,
             };
             db.Rentals.Add(rental);
             payment.RentalId = rental.Id;
@@ -343,7 +360,7 @@ public class PaymentsController(AppDbContext db, IConfiguration config, WhatsApp
 }
 
 // ── Request DTOs ─────────────────────────────────────────────────
-public record CreateOrderRequest(Guid ListingId, string Plan);
+public record CreateOrderRequest(Guid ListingId, string Plan, string? DeliveryAddress);
 public record VerifyPaymentRequest(
     string RazorpayOrderId,
     string RazorpayPaymentId,

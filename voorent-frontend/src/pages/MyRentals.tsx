@@ -77,6 +77,7 @@ export default function MyRentals() {
     openCheckout({
       listingId: rental.listingId,
       plan: rental.planType,
+      deliveryAddress: '', // recurring payment — backend reuses the address saved on the rental
       onSuccess: () => {
         setPayingId(null);
         getMyRentals().then((r) => setRentals(r.data)).catch(console.error);

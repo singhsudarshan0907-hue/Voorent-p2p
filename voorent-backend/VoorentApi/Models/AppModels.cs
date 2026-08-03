@@ -208,6 +208,7 @@ public class Payment
     public Rental? Rental { get; set; }
     public int AmountPaise { get; set; }
     public string Plan { get; set; } = string.Empty;   // monthly | upfront | rent-to-own
+    public string? DeliveryAddress { get; set; }        // captured at checkout, copied onto the Rental
     public string Status { get; set; } = "created";    // created | paid | failed
     public DateTime? PaidAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

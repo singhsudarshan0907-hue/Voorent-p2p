@@ -15,6 +15,7 @@ export default function ConfirmRental() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(
     (params.get('plan') || 'monthly') as PlanType
   );
@@ -43,13 +44,17 @@ export default function ConfirmRental() {
   const upfront12    = item.monthlyRent * 12;
   const firstPayment = selectedPlan === 'upfront' ? upfront12 : monthly;
 
+  const addressValid = deliveryAddress.trim().length >= 10;
+
   const handlePay = () => {
     if (!listingId) return;
+    if (!addressValid) { setError('Please enter your complete delivery address'); return; }
     setPaying(true);
     setError('');
     openCheckout({
       listingId,
       plan: selectedPlan as 'monthly' | 'upfront' | 'rent-to-own',
+      deliveryAddress: deliveryAddress.trim(),
       onSuccess: (rentalId) => {
         setPaying(false);
         navigate(`/my-rentals?new=${rentalId}`);
@@ -185,14 +190,30 @@ export default function ConfirmRental() {
                 </div>
               )}
 
+              {/* Delivery address — required */}
+              <div className="mb-4">
+                <label className="text-sm font-bold text-[#1A1A1A] mb-1.5 block">
+                  Delivery address <span className="text-[#D62828]">*</span>
+                </label>
+                <textarea
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  rows={3}
+                  placeholder="House / flat no., building, street, area, landmark, pincode"
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F] resize-none"
+                  style={{ borderColor: deliveryAddress && !addressValid ? '#FBBCBC' : '#E0E0E0' }}
+                />
+                <p className="text-xs text-[#999] mt-1">We'll deliver your item to this address.</p>
+              </div>
+
               {error && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
-                  <p className="text-xs text-red-600">{error} — please try again.</p>
+                  <p className="text-xs text-red-600">{error}</p>
                 </div>
               )}
 
-              <button onClick={handlePay} disabled={paying || !isServiceable}
-                className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-base mb-3 disabled:opacity-60 hover:opacity-90 transition-opacity"
+              <button onClick={handlePay} disabled={paying || !isServiceable || !addressValid}
+                className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-base mb-3 disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 style={{ background: '#F4A261' }}>
                 {paying ? 'Opening payment…' : `Pay ₹${firstPayment.toLocaleString()} & confirm →`}
               </button>
