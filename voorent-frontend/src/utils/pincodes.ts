@@ -10,6 +10,11 @@ export function isDelhibNCRPincode(pincode: string): boolean {
   return DELHI_NCR_PREFIXES.some((prefix) => pincode.startsWith(prefix));
 }
 
+/** Gurugram (Gurgaon) pincodes all start with 122. Delivery is Gurgaon-only. */
+export function isGurgaonPincode(pincode: string): boolean {
+  return /^\d{6}$/.test(pincode) && pincode.startsWith('122');
+}
+
 export interface ServiceablePincode {
   pincode: string;
   area: string;

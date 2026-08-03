@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import { getListingById } from '../services/api';
 import { useRazorpay } from '../hooks/useRazorpay';
-import { isDelhibNCRPincode } from '../utils/pincodes';
+import { isDelhibNCRPincode, isGurgaonPincode } from '../utils/pincodes';
 import type { Listing, PlanType } from '../types';
 
 export default function ConfirmRental() {
@@ -16,6 +16,7 @@ export default function ConfirmRental() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [pincode, setPincode] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(
     (params.get('plan') || 'monthly') as PlanType
   );
@@ -45,16 +46,18 @@ export default function ConfirmRental() {
   const firstPayment = selectedPlan === 'upfront' ? upfront12 : monthly;
 
   const addressValid = deliveryAddress.trim().length >= 10;
+  const pincodeValid = isGurgaonPincode(pincode);
 
   const handlePay = () => {
     if (!listingId) return;
     if (!addressValid) { setError('Please enter your complete delivery address'); return; }
+    if (!pincodeValid) { setError('We currently deliver only in Gurugram. Please enter a valid Gurgaon pincode (starts with 122).'); return; }
     setPaying(true);
     setError('');
     openCheckout({
       listingId,
       plan: selectedPlan as 'monthly' | 'upfront' | 'rent-to-own',
-      deliveryAddress: deliveryAddress.trim(),
+      deliveryAddress: `${deliveryAddress.trim()} - ${pincode}`,
       onSuccess: (rentalId) => {
         setPaying(false);
         navigate(`/my-rentals?new=${rentalId}`);
@@ -206,13 +209,31 @@ export default function ConfirmRental() {
                 <p className="text-xs text-[#999] mt-1">We'll deliver your item to this address.</p>
               </div>
 
+              {/* Pincode — Gurgaon only */}
+              <div className="mb-4">
+                <label className="text-sm font-bold text-[#1A1A1A] mb-1.5 block">
+                  Pincode <span className="text-[#D62828]">*</span>
+                </label>
+                <input
+                  type="text" inputMode="numeric" maxLength={6}
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 122001"
+                  className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2D6A4F]"
+                  style={{ borderColor: pincode && !pincodeValid ? '#FBBCBC' : '#E0E0E0' }}
+                />
+                {pincode && !pincodeValid
+                  ? <p className="text-xs text-[#D62828] mt-1">We currently deliver only in Gurugram (pincode starts with 122).</p>
+                  : <p className="text-xs text-[#999] mt-1">Gurugram delivery only.</p>}
+              </div>
+
               {error && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
                   <p className="text-xs text-red-600">{error}</p>
                 </div>
               )}
 
-              <button onClick={handlePay} disabled={paying || !isServiceable || !addressValid}
+              <button onClick={handlePay} disabled={paying || !isServiceable || !addressValid || !pincodeValid}
                 className="w-full py-4 rounded-2xl font-bold text-[#1A1A1A] text-base mb-3 disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 style={{ background: '#F4A261' }}>
                 {paying ? 'Opening payment…' : `Pay ₹${firstPayment.toLocaleString()} & confirm →`}
