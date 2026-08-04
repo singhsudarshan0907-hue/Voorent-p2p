@@ -116,7 +116,7 @@ export default function ConfirmRental() {
                   <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>
                     ₹{monthly.toLocaleString()}<span className="text-sm font-normal text-[#555]">/month</span>
                   </p>
-                  <p className="text-sm text-[#555]">Pay via credit card only — 12-month no-cost EMI. Don't see the no cost EMI offer? Contact our team at 9318397171.</p>
+                  <p className="text-sm text-[#555]">Payments made for only one month will not be considered. No Cost EMI is available only for eligible credit card holders. Contact us at 9318397171 for your EMI payment link.</p>
                 </div>
               </label>
 

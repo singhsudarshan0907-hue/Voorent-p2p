@@ -152,7 +152,7 @@ export default function ProductDetails() {
                     ₹{monthly.toLocaleString()}<span className="text-base font-normal text-[#555]">/month</span>
                   </p>
                   <p className="text-sm text-[#555]">₹{monthly.toLocaleString()} × 12 months = <strong>₹{upfront12.toLocaleString()}</strong> total</p>
-                  <p className="text-sm text-[#555] mt-1">Pay via credit card only — 12-month no-cost EMI. Don't see the no cost EMI offer? Contact our team at 9318397171.</p>
+                  <p className="text-sm text-[#555] mt-1">Payments made for only one month will not be considered. No Cost EMI is available only for eligible credit card holders. Contact us at 9318397171 for your EMI payment link.</p>
                 </div>
               </label>
 
