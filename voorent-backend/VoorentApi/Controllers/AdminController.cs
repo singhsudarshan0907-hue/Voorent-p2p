@@ -538,6 +538,11 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
+        // Revenue = paid rental invoices + full sale price of all sold items.
+        // (Reverted sales are deleted from ItemSales, so this only counts live sales.)
+        var rentalRevenue = await db.Invoices.Where(i => i.Status == "paid").SumAsync(i => (decimal?)i.Amount) ?? 0;
+        var salesRevenue  = await db.ItemSales.SumAsync(s => (decimal?)s.SalePrice) ?? 0;
+
         return Ok(new
         {
             TotalUsers    = await db.Users.CountAsync(),
@@ -547,7 +552,7 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
             TotalOrders   = await db.Rentals.CountAsync(),
             ActiveOrders  = await db.Rentals.CountAsync(r => r.Status == "ACTIVE"),
             TotalInvoices = await db.Invoices.CountAsync(),
-            TotalRevenue  = await db.Invoices.Where(i => i.Status == "paid").SumAsync(i => (decimal?)i.Amount) ?? 0,
+            TotalRevenue  = rentalRevenue + salesRevenue,
             TotalSold     = await db.ItemSales.CountAsync(),
             PendingSalePayouts = await db.ItemSales.CountAsync(s => s.SaleType == "voorent" && s.PaymentStatus == "pending"),
         });
