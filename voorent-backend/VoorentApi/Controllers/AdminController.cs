@@ -184,6 +184,91 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         }
         listing.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+
+        // If the admin marked this item rented/sold and gave a customer, create the matching
+        // order so it shows in the Rentals / Sold tab and counts toward revenue.
+        var custPhone = req.CustomerPhone?.Trim();
+        var custName  = req.CustomerName?.Trim();
+        var custEmail = string.IsNullOrWhiteSpace(req.CustomerEmail) ? null : req.CustomerEmail!.Trim().ToLowerInvariant();
+
+        if (req.Status == "rented" && !string.IsNullOrWhiteSpace(custPhone))
+        {
+            // Skip if this listing already has a live rental (avoid duplicates on re-save).
+            var hasRental = await db.Rentals.AnyAsync(r => r.ListingId == listing.Id && r.Status != "CANCELLED");
+            if (!hasRental)
+            {
+                // Find-or-create the renter as a User (phone is the identifier).
+                var customer = await db.Users.FirstOrDefaultAsync(u => u.Phone == custPhone);
+                if (customer == null)
+                {
+                    customer = new User { Phone = custPhone!, Name = custName, Email = custEmail, Role = "customer" };
+                    db.Users.Add(customer);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(customer.Name)  && !string.IsNullOrWhiteSpace(custName))  customer.Name  = custName;
+                    if (string.IsNullOrWhiteSpace(customer.Email) && !string.IsNullOrWhiteSpace(custEmail)) customer.Email = custEmail;
+                }
+                await db.SaveChangesAsync(); // ensure customer.Id
+
+                var monthly = req.Amount is > 0 ? req.Amount.Value : Math.Round(listing.ItemPrice / 12, 0);
+                var rental = new Rental
+                {
+                    ListingId       = listing.Id,
+                    CustomerId      = customer.Id,
+                    PlanType        = "monthly",
+                    MonthlyAmount   = monthly,
+                    TotalMonths     = 12,
+                    CurrentMonth    = 1,
+                    Status          = "ACTIVE",
+                    StartDate       = DateTime.UtcNow,
+                    NextPayment     = DateTime.UtcNow.AddMonths(1),
+                    DeliveryAddress = req.CustomerAddress,
+                };
+                db.Rentals.Add(rental);
+                await db.SaveChangesAsync(); // ensure rental.Id
+
+                // Paid invoice so the rental reflects in revenue immediately.
+                db.Invoices.Add(new Invoice
+                {
+                    InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{rental.Id.ToString()[..4]}",
+                    RentalId      = rental.Id,
+                    CustomerId    = customer.Id,
+                    ListingId     = listing.Id,
+                    Amount        = monthly,
+                    MonthNumber   = 1,
+                    Status        = "paid",
+                    PaidAt        = DateTime.UtcNow,
+                });
+                listing.IsAvailable = false;
+                await db.SaveChangesAsync();
+            }
+        }
+        else if (req.Status == "sold" && !string.IsNullOrWhiteSpace(custPhone))
+        {
+            // Skip if this listing already has a sale record.
+            var hasSale = await db.ItemSales.AnyAsync(s => s.ListingId == listing.Id);
+            if (!hasSale)
+            {
+                var salePrice = req.Amount is > 0 ? req.Amount.Value : listing.ItemPrice;
+                db.ItemSales.Add(new ItemSale
+                {
+                    ListingId     = listing.Id,
+                    OwnerId       = listing.OwnerId,
+                    SaleType      = "external",
+                    SalePrice     = salePrice,
+                    PayoutAmount  = 0,
+                    PaymentMethod = "cash",
+                    PaymentStatus = "paid",
+                    BuyerName     = custName,
+                    BuyerPhone    = custPhone,
+                    Notes         = $"Buyer email: {custEmail ?? "—"} · Address: {req.CustomerAddress ?? "—"}",
+                });
+                listing.IsAvailable = false;
+                await db.SaveChangesAsync();
+            }
+        }
+
         return Ok(new { message = "Listing updated.", id, lat = listing.Latitude, lng = listing.Longitude });
     }
 
@@ -712,7 +797,8 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
 }
 
 public record RejectRequest(string? Reason);
-public record EditListingRequest(string? Title, string? Description, string? Status, decimal? ItemPrice, string? Pincode);
+public record EditListingRequest(string? Title, string? Description, string? Status, decimal? ItemPrice, string? Pincode,
+    string? CustomerName, string? CustomerPhone, string? CustomerEmail, string? CustomerAddress, decimal? Amount);
 internal class NominatimResult { [System.Text.Json.Serialization.JsonPropertyName("lat")] public string Lat { get; set; } = ""; [System.Text.Json.Serialization.JsonPropertyName("lon")] public string Lon { get; set; } = ""; }
 public record EditUserRequest(string? Name, string? Role, string? Email, string? UpiId);
 public record EditInvoiceRequest(decimal? Amount, DateTime? PaidAt, DateTime? DueDate, string? Status, string? Notes);
