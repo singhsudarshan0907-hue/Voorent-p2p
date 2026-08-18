@@ -113,7 +113,7 @@ export default function Admin() {
   const [payouts, setPayouts] = useState<AdminPayout[]>([]);
   const [loading, setLoading] = useState(false);
   const [editListing, setEditListing] = useState<AdminListing | null>(null);
-  const [editCustomer, setEditCustomer] = useState({ name: '', phone: '', email: '', address: '', amount: '' });
+  const [editCustomer, setEditCustomer] = useState({ name: '', phone: '', email: '', address: '', amount: '', date: '', skip: false });
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [editInvoice, setEditInvoice] = useState<AdminInvoice | null>(null);
   const [invoiceForm, setInvoiceForm] = useState({ amount: '', paidAt: '', dueDate: '', status: '', notes: '', couponCode: '' });
@@ -206,18 +206,24 @@ export default function Admin() {
   const saveEditListing = async () => {
     if (!editListing) return;
     const needsCustomer = editListing.status === 'rented' || editListing.status === 'sold';
-    if (needsCustomer && editCustomer.phone && !/^\d{10}$/.test(editCustomer.phone)) {
+    const voorent = editCustomer.skip;
+    if (needsCustomer && !voorent && editCustomer.phone && !/^\d{10}$/.test(editCustomer.phone)) {
       alert('Enter a valid 10-digit customer phone.'); return;
+    }
+    if (needsCustomer && editCustomer.amount && parseFloat(editCustomer.amount) < 0) {
+      alert('Amount cannot be negative.'); return;
     }
     await fetch(`${BASE}/admin/listings/${editListing.id}`, {
       method: 'PUT', headers,
       body: JSON.stringify({
         title: editListing.title, status: editListing.status, itemPrice: editListing.itemPrice, pincode: editListing.pincode || null,
+        skipOrder: needsCustomer ? voorent : false,
         customerName: needsCustomer ? editCustomer.name || null : null,
-        customerPhone: needsCustomer ? editCustomer.phone || null : null,
-        customerEmail: needsCustomer ? editCustomer.email || null : null,
-        customerAddress: needsCustomer ? editCustomer.address || null : null,
+        customerPhone: needsCustomer && !voorent ? editCustomer.phone || null : null,
+        customerEmail: needsCustomer && !voorent ? editCustomer.email || null : null,
+        customerAddress: needsCustomer && !voorent ? editCustomer.address || null : null,
         amount: needsCustomer && editCustomer.amount ? parseFloat(editCustomer.amount) : null,
+        orderDate: needsCustomer && editCustomer.date ? editCustomer.date : null,
       }),
     });
     setEditListing(null); fetchTab('listings'); fetchTab('orders'); fetchTab('sold'); fetchSummary();
@@ -577,7 +583,7 @@ export default function Admin() {
                         style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
                         📁 Files
                       </button>
-                      <button onClick={() => { setEditCustomer({ name: '', phone: '', email: '', address: '', amount: '' }); setEditListing(l); }}
+                      <button onClick={() => { setEditCustomer({ name: '', phone: '', email: '', address: '', amount: '', date: new Date().toISOString().slice(0, 10), skip: false }); setEditListing(l); }}
                         className="px-4 py-2 rounded-xl text-xs font-bold border-2"
                         style={{ borderColor: '#E0E0E0', color: '#555' }}>
                         ✏ Edit
@@ -1026,6 +1032,31 @@ export default function Admin() {
 
               {(editListing.status === 'rented' || editListing.status === 'sold') && (
                 <div className="rounded-xl p-3 space-y-2" style={{ background: '#F0FAF5', border: '1px solid #B0D0C0' }}>
+                  <label className="flex items-start gap-2 cursor-pointer pb-1">
+                    <input type="checkbox" checked={editCustomer.skip}
+                      onChange={e => setEditCustomer({ ...editCustomer, skip: e.target.checked })}
+                      className="mt-0.5 accent-[#2D6A4F] w-4 h-4 flex-shrink-0" />
+                    <span className="text-xs font-semibold text-[#555]">Order placed on Voorent (main site) — record username, date &amp; amount only</span>
+                  </label>
+                  {editCustomer.skip ? (<>
+                    <p className="text-xs font-bold" style={{ color: '#2D6A4F' }}>🌐 Voorent site order — amount counts in revenue, kept for cross-check</p>
+                    <input placeholder="Username / customer (from Voorent)" value={editCustomer.name}
+                      onChange={e => setEditCustomer({ ...editCustomer, name: e.target.value })}
+                      className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                    <div>
+                      <label className="text-[11px] font-semibold text-[#555] mb-1 block">{editListing.status === 'rented' ? 'Rental start date' : 'Sale date'}</label>
+                      <input type="date" value={editCustomer.date}
+                        onChange={e => setEditCustomer({ ...editCustomer, date: e.target.value })}
+                        className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                    </div>
+                    <input placeholder={editListing.status === 'rented'
+                        ? `Amount to revenue (default ₹${Math.round((editListing.itemPrice || 0) / 12).toLocaleString()} / month)`
+                        : `Sale price (default ₹${(editListing.itemPrice || 0).toLocaleString()})`}
+                      type="number" min={0} value={editCustomer.amount}
+                      onChange={e => setEditCustomer({ ...editCustomer, amount: e.target.value })}
+                      className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                    <p className="text-[11px] text-[#777]">Amount is added to revenue. Username &amp; date let you cross-check with Voorent. Leave amount blank for the default.</p>
+                  </>) : (<>
                   <p className="text-xs font-bold" style={{ color: '#2D6A4F' }}>
                     {editListing.status === 'rented' ? '🧑 Renter details' : '🛒 Buyer details'} — creates an order in {editListing.status === 'rented' ? 'Rentals' : 'Sold'}
                   </p>
@@ -1041,13 +1072,20 @@ export default function Admin() {
                   <input placeholder="Address" value={editCustomer.address}
                     onChange={e => setEditCustomer({ ...editCustomer, address: e.target.value })}
                     className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#555] mb-1 block">{editListing.status === 'rented' ? 'Rental start date' : 'Sale date'}</label>
+                    <input type="date" value={editCustomer.date}
+                      onChange={e => setEditCustomer({ ...editCustomer, date: e.target.value })}
+                      className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
+                  </div>
                   <input placeholder={editListing.status === 'rented'
                       ? `Amount to revenue (default ₹${Math.round((editListing.itemPrice || 0) / 12).toLocaleString()} / month)`
                       : `Sale price (default ₹${(editListing.itemPrice || 0).toLocaleString()})`}
-                    type="number" value={editCustomer.amount}
+                    type="number" min={0} value={editCustomer.amount}
                     onChange={e => setEditCustomer({ ...editCustomer, amount: e.target.value })}
                     className="w-full border-2 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#2D6A4F]" style={{ borderColor: '#E0E0E0' }} />
                   <p className="text-[11px] text-[#777]">Leave amount blank to use the default. Phone is required to create the order.</p>
+                  </>)}
                 </div>
               )}
 

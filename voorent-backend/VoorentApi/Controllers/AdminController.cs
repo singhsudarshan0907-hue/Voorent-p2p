@@ -190,24 +190,46 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         var custPhone = req.CustomerPhone?.Trim();
         var custName  = req.CustomerName?.Trim();
         var custEmail = string.IsNullOrWhiteSpace(req.CustomerEmail) ? null : req.CustomerEmail!.Trim().ToLowerInvariant();
+        // Order date (admin-chosen). Force UTC kind so Npgsql can write it to timestamptz columns.
+        var when = req.OrderDate.HasValue ? DateTime.SpecifyKind(req.OrderDate.Value, DateTimeKind.Utc) : DateTime.UtcNow;
 
-        if (req.Status == "rented" && !string.IsNullOrWhiteSpace(custPhone))
+        // "Voorent mode" (SkipOrder=true): the order was already placed on the main Voorent site.
+        // We still record it (username + date + amount) so revenue counts and it's cross-checkable,
+        // but we don't capture p2p customer contact. Normal mode uses phone + full customer details.
+        var voorent = req.SkipOrder == true;
+        var haveRenter = voorent ? !string.IsNullOrWhiteSpace(custName) : !string.IsNullOrWhiteSpace(custPhone);
+
+        if (req.Status == "rented" && haveRenter)
         {
             // Skip if this listing already has a live rental (avoid duplicates on re-save).
             var hasRental = await db.Rentals.AnyAsync(r => r.ListingId == listing.Id && r.Status != "CANCELLED");
             if (!hasRental)
             {
-                // Find-or-create the renter as a User (phone is the identifier).
-                var customer = await db.Users.FirstOrDefaultAsync(u => u.Phone == custPhone);
-                if (customer == null)
+                User customer;
+                if (voorent)
                 {
-                    customer = new User { Phone = custPhone!, Name = custName, Email = custEmail, Role = "customer" };
-                    db.Users.Add(customer);
+                    // Reuse one shared "Voorent Site" user; the username is kept on the order's address.
+                    customer = await db.Users.FirstOrDefaultAsync(u => u.Phone == "VOORENT");
+                    if (customer == null)
+                    {
+                        customer = new User { Phone = "VOORENT", Name = "Voorent Site", Role = "customer" };
+                        db.Users.Add(customer);
+                    }
                 }
                 else
                 {
-                    if (string.IsNullOrWhiteSpace(customer.Name)  && !string.IsNullOrWhiteSpace(custName))  customer.Name  = custName;
-                    if (string.IsNullOrWhiteSpace(customer.Email) && !string.IsNullOrWhiteSpace(custEmail)) customer.Email = custEmail;
+                    // Find-or-create the renter as a User (phone is the identifier).
+                    customer = await db.Users.FirstOrDefaultAsync(u => u.Phone == custPhone);
+                    if (customer == null)
+                    {
+                        customer = new User { Phone = custPhone!, Name = custName, Email = custEmail, Role = "customer" };
+                        db.Users.Add(customer);
+                    }
+                    else
+                    {
+                        if (string.IsNullOrWhiteSpace(customer.Name)  && !string.IsNullOrWhiteSpace(custName))  customer.Name  = custName;
+                        if (string.IsNullOrWhiteSpace(customer.Email) && !string.IsNullOrWhiteSpace(custEmail)) customer.Email = custEmail;
+                    }
                 }
                 await db.SaveChangesAsync(); // ensure customer.Id
 
@@ -221,9 +243,10 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
                     TotalMonths     = 12,
                     CurrentMonth    = 1,
                     Status          = "ACTIVE",
-                    StartDate       = DateTime.UtcNow,
-                    NextPayment     = DateTime.UtcNow.AddMonths(1),
-                    DeliveryAddress = req.CustomerAddress,
+                    StartDate       = when,
+                    NextPayment     = when.AddMonths(1),
+                    DeliveryAddress = voorent ? $"Voorent site order — user: {custName}" : req.CustomerAddress,
+                    CreatedAt       = when,
                 };
                 db.Rentals.Add(rental);
                 await db.SaveChangesAsync(); // ensure rental.Id
@@ -238,13 +261,14 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
                     Amount        = monthly,
                     MonthNumber   = 1,
                     Status        = "paid",
-                    PaidAt        = DateTime.UtcNow,
+                    PaidAt        = when,
+                    CreatedAt     = when,
                 });
                 listing.IsAvailable = false;
                 await db.SaveChangesAsync();
             }
         }
-        else if (req.Status == "sold" && !string.IsNullOrWhiteSpace(custPhone))
+        else if (req.Status == "sold" && haveRenter)
         {
             // Skip if this listing already has a sale record.
             var hasSale = await db.ItemSales.AnyAsync(s => s.ListingId == listing.Id);
@@ -261,8 +285,10 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
                     PaymentMethod = "cash",
                     PaymentStatus = "paid",
                     BuyerName     = custName,
-                    BuyerPhone    = custPhone,
-                    Notes         = $"Buyer email: {custEmail ?? "—"} · Address: {req.CustomerAddress ?? "—"}",
+                    BuyerPhone    = voorent ? null : custPhone,
+                    Notes         = voorent ? "Voorent site order — cross-check" : $"Buyer email: {custEmail ?? "—"} · Address: {req.CustomerAddress ?? "—"}",
+                    PaidAt        = when,
+                    CreatedAt     = when,
                 });
                 listing.IsAvailable = false;
                 await db.SaveChangesAsync();
@@ -798,7 +824,8 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
 
 public record RejectRequest(string? Reason);
 public record EditListingRequest(string? Title, string? Description, string? Status, decimal? ItemPrice, string? Pincode,
-    string? CustomerName, string? CustomerPhone, string? CustomerEmail, string? CustomerAddress, decimal? Amount);
+    string? CustomerName, string? CustomerPhone, string? CustomerEmail, string? CustomerAddress, decimal? Amount, DateTime? OrderDate,
+    bool? SkipOrder);
 internal class NominatimResult { [System.Text.Json.Serialization.JsonPropertyName("lat")] public string Lat { get; set; } = ""; [System.Text.Json.Serialization.JsonPropertyName("lon")] public string Lon { get; set; } = ""; }
 public record EditUserRequest(string? Name, string? Role, string? Email, string? UpiId);
 public record EditInvoiceRequest(decimal? Amount, DateTime? PaidAt, DateTime? DueDate, string? Status, string? Notes);
