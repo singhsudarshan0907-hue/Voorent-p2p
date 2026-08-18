@@ -29,7 +29,7 @@ interface AdminListing {
   id: string; title: string; category: string; condition: string;
   itemPrice: number; monthlyRent: number; status: string;
   imageUrl: string; createdAt: string; ownerPhone: string; ownerName: string;
-  pincode?: string;
+  pincode?: string; customerName?: string; customerPhone?: string;
 }
 interface AdminUser {
   id: string; name: string; email: string; phone: string; role: string;
@@ -374,7 +374,7 @@ export default function Admin() {
   const TABS: { key: Tab; label: string; count: number }[] = [
     { key: 'listings', label: '📦 Items',    count: summary?.totalListings ?? 0 },
     { key: 'users',    label: '👥 Users',    count: summary?.totalUsers ?? 0 },
-    { key: 'orders',   label: '🛒 Orders',   count: summary?.totalOrders ?? 0 },
+    { key: 'orders',   label: '🛒 Rentals',   count: summary?.totalOrders ?? 0 },
     { key: 'invoices', label: '🧾 Invoices', count: summary?.totalInvoices ?? 0 },
     { key: 'payouts',  label: '💰 Payouts',  count: payouts.length },
     { key: 'sold',     label: '🏷️ Sold',      count: summary?.totalSold ?? sales.length },
@@ -542,6 +542,11 @@ export default function Admin() {
                           style={{ background: sc.bg, color: sc.text }}>{l.status}</span>
                       </div>
                       <p className="text-xs text-[#999] mb-2">{l.category} · {l.condition} · ₹{l.itemPrice.toLocaleString()} · Owner: {l.ownerName} ({l.ownerPhone})</p>
+                      {(l.status === 'rented' || l.status === 'sold') && (l.customerName || l.customerPhone) && (
+                        <p className="text-xs font-semibold mb-2" style={{ color: '#2D6A4F' }}>
+                          {l.status === 'rented' ? '🧑 Rented by' : '🛒 Bought by'}: {l.customerName || '—'}{l.customerPhone ? ` (${l.customerPhone})` : ''}
+                        </p>
+                      )}
                       <p className="text-xs text-[#999]">{new Date(l.createdAt).toLocaleDateString('en-IN')}</p>
                     </div>
                     <div className="flex flex-col gap-2 flex-shrink-0">

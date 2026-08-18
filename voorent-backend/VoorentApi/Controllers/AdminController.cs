@@ -70,14 +70,50 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         if (to.HasValue)   q = q.Where(l => l.CreatedAt <= to.Value);
 
         var items = await q.OrderByDescending(l => l.CreatedAt).ToListAsync();
+        var ids = items.Select(l => l.Id).ToList();
 
-        return Ok(items.Select(l => new
+        // Renter for rented items — the most recent rental per listing (with its customer).
+        var renterByListing = (await db.Rentals
+                .Include(r => r.Customer)
+                .Where(r => ids.Contains(r.ListingId))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync())
+            .GroupBy(r => r.ListingId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Buyer for sold items — the most recent sale per listing.
+        var saleByListing = (await db.ItemSales
+                .Where(s => ids.Contains(s.ListingId))
+                .OrderByDescending(s => s.CreatedAt)
+                .ToListAsync())
+            .GroupBy(s => s.ListingId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        return Ok(items.Select(l =>
         {
-            l.Id, l.Title, l.Description, l.Category, l.Condition, l.Status,
-            l.ItemPrice, MonthlyRent = Math.Round(l.ItemPrice / 12, 0), l.CreatedAt,
-            ImageUrl   = l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
-            OwnerPhone = l.Owner?.Phone ?? "",
-            OwnerName  = l.Owner?.Name ?? "",
+            // Customer = who is renting (rented) or who bought it (sold).
+            string customerName = "", customerPhone = "";
+            if (l.Status == "rented" && renterByListing.TryGetValue(l.Id, out var r))
+            {
+                customerName  = r.Customer?.Name ?? "";
+                customerPhone = r.Customer?.Phone ?? "";
+            }
+            else if (l.Status == "sold" && saleByListing.TryGetValue(l.Id, out var s))
+            {
+                if (s.SaleType == "voorent") { customerName = "Voorent"; }
+                else { customerName = s.BuyerName ?? ""; customerPhone = s.BuyerPhone ?? ""; }
+            }
+
+            return new
+            {
+                l.Id, l.Title, l.Description, l.Category, l.Condition, l.Status,
+                l.ItemPrice, MonthlyRent = Math.Round(l.ItemPrice / 12, 0), l.CreatedAt,
+                ImageUrl   = l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
+                OwnerPhone = l.Owner?.Phone ?? "",
+                OwnerName  = l.Owner?.Name ?? "",
+                CustomerName  = customerName,
+                CustomerPhone = customerPhone,
+            };
         }));
     }
 
@@ -538,9 +574,13 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        // Revenue = paid rental invoices + full sale price of all sold items.
-        // (Reverted sales are deleted from ItemSales, so this only counts live sales.)
-        var rentalRevenue = await db.Invoices.Where(i => i.Status == "paid").SumAsync(i => (decimal?)i.Amount) ?? 0;
+        // Revenue = paid rental invoices + full sale price of all sold items, minus refunds.
+        // Refund handling: paid invoices belonging to a CANCELLED rental are excluded, and
+        // reverted sales are already deleted from ItemSales so they drop out automatically.
+        var rentalRevenue = await db.Invoices
+            .Where(i => i.Status == "paid"
+                     && !db.Rentals.Any(r => r.Id == i.RentalId && r.Status == "CANCELLED"))
+            .SumAsync(i => (decimal?)i.Amount) ?? 0;
         var salesRevenue  = await db.ItemSales.SumAsync(s => (decimal?)s.SalePrice) ?? 0;
 
         return Ok(new
