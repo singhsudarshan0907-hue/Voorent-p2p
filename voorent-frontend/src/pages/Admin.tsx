@@ -59,6 +59,14 @@ interface Coupon {
   maxUses: number | null; usedCount: number; expiresAt: string | null;
   isActive: boolean; createdAt: string;
 }
+interface UserOrder {
+  id: string; status: string; planType: string; monthlyAmount: number;
+  currentMonth: number; totalMonths: number; startDate: string; createdAt: string; listingTitle: string;
+}
+interface UserInvoice {
+  id: string; invoiceNumber: string; amount: number; status: string;
+  monthNumber: number; paidAt: string | null; createdAt: string; listingTitle: string;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   PROCESSING: 'Processing',
@@ -115,6 +123,19 @@ export default function Admin() {
   const [editListing, setEditListing] = useState<AdminListing | null>(null);
   const [editCustomer, setEditCustomer] = useState({ name: '', phone: '', email: '', address: '', amount: '', date: '', skip: false });
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [activityUser, setActivityUser] = useState<AdminUser | null>(null);
+  const [activity, setActivity] = useState<{ orders: UserOrder[]; invoices: UserInvoice[] }>({ orders: [], invoices: [] });
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const openActivity = async (u: AdminUser) => {
+    setActivityUser(u);
+    setActivity({ orders: [], invoices: [] });
+    setActivityLoading(true);
+    try {
+      const res = await fetch(`${BASE}/admin/users/${u.id}/activity`, { headers });
+      if (res.ok) setActivity(await res.json());
+    } finally { setActivityLoading(false); }
+  };
   const [editInvoice, setEditInvoice] = useState<AdminInvoice | null>(null);
   const [invoiceForm, setInvoiceForm] = useState({ amount: '', paidAt: '', dueDate: '', status: '', notes: '', couponCode: '' });
   const [couponMsg, setCouponMsg] = useState('');
@@ -635,11 +656,18 @@ export default function Admin() {
                       <td className="px-5 py-4 text-[#555] hidden md:table-cell">{u.listingCount}</td>
                       <td className="px-5 py-4 text-[#999] hidden md:table-cell">{new Date(u.createdAt).toLocaleDateString('en-IN')}</td>
                       <td className="px-5 py-4">
-                        <button onClick={() => setEditUser(u)}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
-                          style={{ borderColor: '#E0E0E0', color: '#555' }}>
-                          ✏ Edit
-                        </button>
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => openActivity(u)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                            style={{ borderColor: '#2D6A4F', color: '#2D6A4F' }}>
+                            👁 View
+                          </button>
+                          <button onClick={() => setEditUser(u)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold border-2"
+                            style={{ borderColor: '#E0E0E0', color: '#555' }}>
+                            ✏ Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1424,6 +1452,79 @@ export default function Admin() {
       )}
 
       {/* Edit User Modal */}
+      {activityUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setActivityUser(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="font-bold text-lg">{activityUser.name || '—'}</h2>
+              <button onClick={() => setActivityUser(null)} className="text-[#999] text-xl leading-none">✕</button>
+            </div>
+            <p className="text-xs font-mono text-[#999] mb-4">{activityUser.phone}{activityUser.email ? ` · ${activityUser.email}` : ''}</p>
+
+            <h3 className="text-sm font-bold text-[#1A1A1A] mb-2">🛒 Rentals ({activity.orders.length})</h3>
+            {activityLoading ? (
+              <p className="text-sm text-[#999] py-3">Loading…</p>
+            ) : activity.orders.length === 0 ? (
+              <p className="text-sm text-[#999] py-2">No rentals.</p>
+            ) : (
+              <div className="border border-[#E0E0E0] rounded-xl overflow-hidden mb-5">
+                <table className="w-full text-xs">
+                  <thead><tr className="bg-[#F9F9F9] text-[#555]">
+                    <th className="text-left px-3 py-2 font-semibold">Item</th>
+                    <th className="text-left px-3 py-2 font-semibold">Plan</th>
+                    <th className="text-left px-3 py-2 font-semibold">Monthly</th>
+                    <th className="text-left px-3 py-2 font-semibold">Status</th>
+                    <th className="text-left px-3 py-2 font-semibold">Date</th>
+                  </tr></thead>
+                  <tbody>
+                    {activity.orders.map(o => (
+                      <tr key={o.id} className="border-t border-[#F0F0F0]">
+                        <td className="px-3 py-2">{o.listingTitle}</td>
+                        <td className="px-3 py-2">{o.planType}</td>
+                        <td className="px-3 py-2">₹{(o.monthlyAmount || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2">{o.status}</td>
+                        <td className="px-3 py-2 text-[#999]">{new Date(o.startDate || o.createdAt).toLocaleDateString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h3 className="text-sm font-bold text-[#1A1A1A] mb-2">🧾 Invoices ({activity.invoices.length})</h3>
+            {activityLoading ? (
+              <p className="text-sm text-[#999] py-3">Loading…</p>
+            ) : activity.invoices.length === 0 ? (
+              <p className="text-sm text-[#999] py-2">No invoices.</p>
+            ) : (
+              <div className="border border-[#E0E0E0] rounded-xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead><tr className="bg-[#F9F9F9] text-[#555]">
+                    <th className="text-left px-3 py-2 font-semibold">Invoice</th>
+                    <th className="text-left px-3 py-2 font-semibold">Item</th>
+                    <th className="text-left px-3 py-2 font-semibold">Amount</th>
+                    <th className="text-left px-3 py-2 font-semibold">Status</th>
+                    <th className="text-left px-3 py-2 font-semibold">Date</th>
+                  </tr></thead>
+                  <tbody>
+                    {activity.invoices.map(inv => (
+                      <tr key={inv.id} className="border-t border-[#F0F0F0]">
+                        <td className="px-3 py-2 font-mono">{inv.invoiceNumber}</td>
+                        <td className="px-3 py-2">{inv.listingTitle}</td>
+                        <td className="px-3 py-2">₹{(inv.amount || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2">{inv.status}</td>
+                        <td className="px-3 py-2 text-[#999]">{new Date(inv.paidAt || inv.createdAt).toLocaleDateString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
           <div className="absolute inset-0 bg-black/50" />

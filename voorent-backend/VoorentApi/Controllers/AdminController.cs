@@ -681,6 +681,34 @@ public class AdminController(AppDbContext db, WhatsAppService whatsApp, EmailSer
         }));
     }
 
+    // ── GET one user's activity — their rentals (orders) + invoices ──────────
+    [HttpGet("users/{id:guid}/activity")]
+    public async Task<IActionResult> GetUserActivity(Guid id)
+    {
+        var orders = await db.Rentals
+            .Where(r => r.CustomerId == id)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id, r.Status, r.PlanType, r.MonthlyAmount, r.CurrentMonth, r.TotalMonths,
+                r.StartDate, r.CreatedAt,
+                ListingTitle = r.Listing != null ? r.Listing.Title : "—",
+            })
+            .ToListAsync();
+
+        var invoices = await db.Invoices
+            .Where(i => i.CustomerId == id)
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new
+            {
+                i.Id, i.InvoiceNumber, i.Amount, i.Status, i.MonthNumber, i.PaidAt, i.CreatedAt,
+                ListingTitle = i.Listing != null ? i.Listing.Title : "—",
+            })
+            .ToListAsync();
+
+        return Ok(new { orders, invoices });
+    }
+
     // ── GET admin summary stats ───────────────────────────────────────────────
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
