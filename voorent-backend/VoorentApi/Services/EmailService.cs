@@ -174,7 +174,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   </tr>
 </table>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/browse' {CtaStyle()}>Browse Listings →</a>
+  <a href='https://flexiassets.in/browse' {CtaStyle()}>Browse Listings →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Need help? Reply to this email or write to
@@ -221,7 +221,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   Please ensure you or an authorised adult is available at the delivery address.
 </p>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/my-rentals' {CtaStyle()}>View My Rentals →</a>
+  <a href='https://flexiassets.in/my-rentals' {CtaStyle()}>View My Rentals →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Questions? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>
@@ -260,7 +260,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   </table>
 </div>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/dashboard/owner' {CtaStyle()}>View My Listings →</a>
+  <a href='https://flexiassets.in/dashboard/owner' {CtaStyle()}>View My Listings →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Need help? Write to <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>.
@@ -296,7 +296,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   </tr>
 </table>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/dashboard/owner' {CtaStyle()}>Go to Owner Dashboard →</a>
+  <a href='https://flexiassets.in/dashboard/owner' {CtaStyle()}>Go to Owner Dashboard →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Questions about payouts? <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>
@@ -334,7 +334,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   Please make the payment before the due date to avoid any interruption in your rental.
 </p>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/my-rentals' {CtaStyle()}>Pay Now →</a>
+  <a href='https://flexiassets.in/my-rentals' {CtaStyle()}>Pay Now →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Questions? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>
@@ -359,7 +359,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   You will receive an invoice each month. Please make payments on time to keep your rental active.
 </p>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/my-rentals' {CtaStyle()}>View My Rentals →</a>
+  <a href='https://flexiassets.in/my-rentals' {CtaStyle()}>View My Rentals →</a>
 </div>
 <p style='color:#999;font-size:13px;line-height:1.6;margin:0'>
   Issues with your delivery? Email <a href='mailto:support@voorent.com' style='color:#2D6A4F'>support@voorent.com</a>.
@@ -391,7 +391,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
   </tr>
 </table>
 <div style='text-align:center;margin-bottom:24px'>
-  <a href='https://p2p.voorent.com/admin' {CtaStyle()}>Open Admin Dashboard →</a>
+  <a href='https://flexiassets.in/admin' {CtaStyle()}>Open Admin Dashboard →</a>
 </div>
 {Footer()}";
 
@@ -423,8 +423,8 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger)
 <tr><td style='background:#F9F9F9;border-top:1px solid #E0E0E0;padding:20px 32px;text-align:center'>
   <p style='color:#999;font-size:12px;margin:0'>
     © 2026 Voorent Pvt. Ltd. · Rohini, New Delhi ·
-    <a href='https://p2p.voorent.com/terms' style='color:#2D6A4F'>Terms</a> ·
-    <a href='https://p2p.voorent.com/privacy' style='color:#2D6A4F'>Privacy</a>
+    <a href='https://flexiassets.in/terms' style='color:#2D6A4F'>Terms</a> ·
+    <a href='https://flexiassets.in/privacy' style='color:#2D6A4F'>Privacy</a>
   </p>
 </td></tr>
 </table>

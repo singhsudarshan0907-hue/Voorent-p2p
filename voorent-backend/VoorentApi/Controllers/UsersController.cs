@@ -61,7 +61,7 @@ public class UsersController(AppDbContext db, EmailService email, IConfiguration
                     {
                         From = new MailAddress(smtpFrom!, "Voorent"),
                         Subject = "Welcome to Voorent P2P!",
-                        Body = $"Hi {user.Name},\n\nWelcome to Voorent P2P — Delhi NCR's managed marketplace for second-hand furniture and appliances.\n\nBrowse listings at https://p2p.voorent.com/browse\n\n— Team Voorent",
+                        Body = $"Hi {user.Name},\n\nWelcome to Voorent P2P — Delhi NCR's managed marketplace for second-hand furniture and appliances.\n\nBrowse listings at https://flexiassets.in/browse\n\n— Team Voorent",
                         IsBodyHtml = false
                     };
                     mail.To.Add(user.Email);

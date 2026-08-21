@@ -32,7 +32,7 @@ const FAQS: FAQSection[] = [
       },
       {
         q: 'Is Voorent P2P the same as voorent.com?',
-        a: 'Voorent P2P (p2p.voorent.com) is a separate platform focused on peer-to-peer rentals of second-hand items. The main voorent.com offers brand-new or refurbished items managed entirely by Voorent.',
+        a: 'Voorent P2P (flexiassets.in) is a separate platform focused on peer-to-peer rentals of second-hand items. The main voorent.com offers brand-new or refurbished items managed entirely by Voorent.',
       },
     ],
   },

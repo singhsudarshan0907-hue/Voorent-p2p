@@ -4,7 +4,7 @@ import TopNav from '../components/TopNav';
 const SECTIONS = [
   {
     title: '1. General Information & Acceptance of Terms',
-    body: `This website, p2p.voorent.com, is owned, hosted and operated by Voorent Pvt. Ltd ("VPL"), a company incorporated in India under the Companies Act, 2013, having its registered office at House 95, Ground Floor, Pocket 17, Sector 24, Rohini, New Delhi - 110085.
+    body: `This website, flexiassets.in, is owned, hosted and operated by Voorent Pvt. Ltd ("VPL"), a company incorporated in India under the Companies Act, 2013, having its registered office at House 95, Ground Floor, Pocket 17, Sector 24, Rohini, New Delhi - 110085.
 
 By accessing or using the Voorent P2P platform ("Service"), you signify your agreement to these Terms of Use and agree to be bound by them. VPL reserves the right to update or modify these Terms at any time without prior notice. Your continued use of the Service after any such change constitutes your agreement to follow and be bound by the Terms as modified.
 
