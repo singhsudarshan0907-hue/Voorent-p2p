@@ -30,7 +30,10 @@ export const verifyOtp = (phone: string, otp: string, email?: string) =>
   api.post<{ id: string; role: string; name: string; phone: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp, email });
 
 // Image URL helper — images are stored on the backend server, not the frontend
-const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Backend origin for image/upload URLs. When VITE_API_URL is relative ("/api"), this becomes ""
+// so image URLs stay relative to the current domain (works on any host). Only fall back to
+// localhost when VITE_API_URL is not set at all (avoid the empty-string || pitfall).
+const BACKEND = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api').replace('/api', '');
 export const resolveImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http')) return url;          // already absolute
