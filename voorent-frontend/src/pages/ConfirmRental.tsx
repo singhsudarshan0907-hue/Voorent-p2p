@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import { getListingById } from '../services/api';
 import { useRazorpay } from '../hooks/useRazorpay';
+import { useCashfree } from '../hooks/useCashfree';
 import { isDelhibNCRPincode, isGurgaonPincode } from '../utils/pincodes';
 import type { Listing, PlanType } from '../types';
 
@@ -21,7 +22,13 @@ export default function ConfirmRental() {
     (params.get('plan') || 'monthly') as PlanType
   );
 
-  const { openCheckout } = useRazorpay();
+  // Gateway: Cashfree by default; ?gateway=razorpay (or VITE_PAYMENT_GATEWAY) switches back. Both
+  // hooks share the same openCheckout signature so the rest of the page is unchanged.
+  const gatewayPref = (params.get('gateway') || import.meta.env.VITE_PAYMENT_GATEWAY || 'razorpay').toLowerCase();
+  const useCf = gatewayPref === 'cashfree';
+  const razorpay = useRazorpay();
+  const cashfree = useCashfree();
+  const openCheckout = useCf ? cashfree.openCheckout : razorpay.openCheckout;
 
   useEffect(() => {
     if (!listingId) return;
@@ -239,7 +246,7 @@ export default function ConfirmRental() {
                 {paying ? 'Opening payment…' : `Pay ₹${firstPayment.toLocaleString()} & confirm →`}
               </button>
 
-              <p className="text-xs text-center text-[#999]">🔒 Secured by Razorpay · UPI · Cards · NetBanking</p>
+              <p className="text-xs text-center text-[#999]">🔒 Secure payments · UPI · Cards · NetBanking</p>
             </div>
           </div>
         </div>

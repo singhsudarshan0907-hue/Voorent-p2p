@@ -99,4 +99,12 @@ export const verifyRazorpayPayment = (
     razorpaySignature,
   });
 
+// Cashfree
+export const createCashfreeOrder = (listingId: string, plan: string, deliveryAddress: string) =>
+  api.post<{ orderId: string; paymentSessionId: string; mode: string; planLabel: string }>(
+    '/payments/cashfree/create-order', { listingId, plan, deliveryAddress });
+
+export const verifyCashfreePayment = (orderId: string) =>
+  api.post<{ message: string; rentalId: string }>('/payments/cashfree/verify', { orderId });
+
 export default api;

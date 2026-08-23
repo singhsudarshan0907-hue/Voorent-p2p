@@ -14,8 +14,161 @@ namespace VoorentApi.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-public class PaymentsController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp, EmailService email) : ControllerBase
+public class PaymentsController(AppDbContext db, IConfiguration config, WhatsAppService whatsApp, EmailService email, IHttpClientFactory http) : ControllerBase
 {
+    // ── Cashfree config helper ───────────────────────────────────
+    private (string baseUrl, string clientId, string clientSecret, string mode) CashfreeConfig()
+    {
+        var env = (config["Cashfree:Environment"] ?? "sandbox").ToLowerInvariant();
+        var baseUrl = env == "production" ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
+        return (baseUrl, config["Cashfree:ClientId"] ?? "", config["Cashfree:ClientSecret"] ?? "", env == "production" ? "production" : "sandbox");
+    }
+
+    // ── Cashfree: Create Order ───────────────────────────────────
+    // Same shape as Razorpay create-order; returns a payment_session_id for the JS SDK.
+    [HttpPost("cashfree/create-order")]
+    [Authorize]
+    public async Task<IActionResult> CashfreeCreateOrder([FromBody] CreateOrderRequest req)
+    {
+        var customerId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var listing = await db.Listings.FindAsync(req.ListingId);
+        if (listing is null) return NotFound("Listing not found");
+        if (!listing.IsAvailable) return BadRequest("Item is no longer available");
+
+        var deliveryAddress = req.DeliveryAddress?.Trim();
+        var existingRental = await db.Rentals.FirstOrDefaultAsync(r => r.ListingId == req.ListingId && r.CustomerId == customerId);
+        if (existingRental is null)
+        {
+            if (string.IsNullOrWhiteSpace(deliveryAddress) || deliveryAddress.Length < 10)
+                return BadRequest("Please enter a complete delivery address (at least 10 characters).");
+        }
+        else if (string.IsNullOrWhiteSpace(deliveryAddress))
+        {
+            deliveryAddress = existingRental.DeliveryAddress;
+        }
+
+        int amountPaise = req.Plan switch
+        {
+            "upfront"     => (int)(listing.ItemPrice * 100),
+            "monthly"     => (int)(listing.ItemPrice / 12 * 100),
+            "rent-to-own" => (int)(listing.ItemPrice / 12 * 100),
+            _             => throw new ArgumentException("Invalid plan")
+        };
+        string planLabel = req.Plan switch
+        {
+            "upfront"     => "Upfront Purchase",
+            "monthly"     => "Monthly Rental — Month 1",
+            "rent-to-own" => "Rent-to-Own — No Cost EMI (24 months)",
+            _             => req.Plan
+        };
+
+        var (baseUrl, clientId, clientSecret, mode) = CashfreeConfig();
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            return StatusCode(500, "Cashfree not configured.");
+
+        var customer   = await db.Users.FindAsync(customerId);
+        var orderId    = ("VR" + Guid.NewGuid().ToString("N"))[..24];   // unique alnum id
+        var orderAmount = Math.Round(amountPaise / 100m, 2);
+
+        var payload = new
+        {
+            order_id       = orderId,
+            order_amount   = orderAmount,
+            order_currency = "INR",
+            customer_details = new
+            {
+                customer_id    = customerId.ToString("N"),
+                customer_phone = string.IsNullOrWhiteSpace(customer?.Phone) ? "9999999999" : customer!.Phone,
+                customer_name  = string.IsNullOrWhiteSpace(customer?.Name) ? "Voorent Customer" : customer!.Name,
+                customer_email = string.IsNullOrWhiteSpace(customer?.Email) ? "support@voorent.com" : customer!.Email
+            },
+            order_note = planLabel
+        };
+
+        var client = http.CreateClient();
+        var reqMsg = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/orders")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+        };
+        reqMsg.Headers.Add("x-client-id", clientId);
+        reqMsg.Headers.Add("x-client-secret", clientSecret);
+        reqMsg.Headers.Add("x-api-version", "2023-08-01");
+
+        var resp     = await client.SendAsync(reqMsg);
+        var respBody = await resp.Content.ReadAsStringAsync();
+        if (!resp.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"[Cashfree] create-order {(int)resp.StatusCode}: {respBody}");
+            return StatusCode(502, "Payment gateway error. Please try again.");
+        }
+
+        var paymentSessionId = JsonDocument.Parse(respBody).RootElement.GetProperty("payment_session_id").GetString();
+
+        // Store pending payment — Cashfree order id reuses the RazorpayOrderId column (no schema change).
+        db.Payments.Add(new Payment
+        {
+            RazorpayOrderId = orderId,
+            ListingId       = req.ListingId,
+            CustomerId      = customerId,
+            AmountPaise     = amountPaise,
+            Plan            = req.Plan,
+            DeliveryAddress = deliveryAddress,
+            Status          = "created"
+        });
+        await db.SaveChangesAsync();
+
+        return Ok(new { orderId, paymentSessionId, mode, planLabel });
+    }
+
+    // ── Cashfree: Verify (server-authoritative) ──────────────────
+    // Fetch the order from Cashfree and only create the rental if it's actually PAID.
+    [HttpPost("cashfree/verify")]
+    [Authorize]
+    public async Task<IActionResult> CashfreeVerify([FromBody] CashfreeVerifyRequest req)
+    {
+        var customerId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (baseUrl, clientId, clientSecret, _) = CashfreeConfig();
+
+        var client = http.CreateClient();
+        var reqMsg = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/orders/{req.OrderId}");
+        reqMsg.Headers.Add("x-client-id", clientId);
+        reqMsg.Headers.Add("x-client-secret", clientSecret);
+        reqMsg.Headers.Add("x-api-version", "2023-08-01");
+
+        var resp     = await client.SendAsync(reqMsg);
+        var respBody = await resp.Content.ReadAsStringAsync();
+        if (!resp.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"[Cashfree] get-order {(int)resp.StatusCode}: {respBody}");
+            return BadRequest("Could not verify payment. If money was deducted, contact support.");
+        }
+
+        var status = JsonDocument.Parse(respBody).RootElement.GetProperty("order_status").GetString();
+        if (status != "PAID")
+            return BadRequest($"Payment not completed (status: {status}).");
+
+        var payment = await db.Payments.FirstOrDefaultAsync(p => p.RazorpayOrderId == req.OrderId && p.CustomerId == customerId);
+        if (payment is null) return NotFound("Payment record not found");
+        if (payment.Status == "paid") return Ok(new { message = "Already processed", rentalId = payment.RentalId });
+
+        payment.Status = "paid";
+        payment.PaidAt = DateTime.UtcNow;
+        await CreateRentalFromPaymentAsync(payment);
+        await db.SaveChangesAsync();
+
+        var cust    = await db.Users.FindAsync(payment.CustomerId);
+        var listing = await db.Listings.FindAsync(payment.ListingId);
+        if (cust != null && listing != null)
+        {
+            _ = whatsApp.PaymentConfirmedAsync(cust.Phone, cust.Name ?? "there", listing.Title, req.OrderId);
+            if (!string.IsNullOrEmpty(cust.Email))
+                _ = email.OrderConfirmedAsync(cust.Email, cust.Name ?? "", listing.Title, req.OrderId, payment.AmountPaise / 100m, payment.Plan);
+        }
+
+        return Ok(new { message = "Payment successful", rentalId = payment.RentalId });
+    }
+
     // ── Create Razorpay Order ────────────────────────────────────
     // Called just before opening the Razorpay checkout popup
     [HttpPost("create-order")]
@@ -366,3 +519,4 @@ public record VerifyPaymentRequest(
     string RazorpayPaymentId,
     string RazorpaySignature
 );
+public record CashfreeVerifyRequest(string OrderId);
