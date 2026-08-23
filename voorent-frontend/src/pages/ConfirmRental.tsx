@@ -246,7 +246,7 @@ export default function ConfirmRental() {
                 {paying ? 'Opening payment…' : `Pay ₹${firstPayment.toLocaleString()} & confirm →`}
               </button>
 
-              <p className="text-xs text-center text-[#999]">🔒 Secure payments · UPI · Cards · NetBanking</p>
+              <p className="text-xs text-center text-[#999]">🔒 Secured by Razorpay · UPI · Cards · NetBanking</p>
             </div>
           </div>
         </div>
