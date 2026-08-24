@@ -549,7 +549,7 @@ export default function ListAnItem() {
       {/* ── Footer ── */}
       <footer className="border-t border-[#E0E0E0] py-8 bg-white">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-3 text-sm text-[#999]">
-          <p className="text-lg font-bold" style={{ color: '#2D6A4F' }}>Voorent</p>
+          <p className="text-lg font-bold" style={{ color: '#2D6A4F' }}>FlexiAssets</p>
           <div className="flex gap-5">
             <button onClick={() => navigate('/terms')} className="hover:text-[#2D6A4F] transition-colors">Terms of Service</button>
             <button onClick={() => navigate('/privacy')} className="hover:text-[#2D6A4F] transition-colors">Privacy Policy</button>

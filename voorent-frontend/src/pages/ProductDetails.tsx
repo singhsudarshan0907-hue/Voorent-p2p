@@ -286,7 +286,7 @@ export default function ProductDetails() {
       <footer className="border-t border-[#E0E0E0] py-10 bg-white mt-8">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between gap-6 text-sm text-[#999]">
           <div>
-            <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>Voorent</p>
+            <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>FlexiAssets</p>
             <p>India's trusted rent-to-own marketplace</p>
           </div>
           <div className="flex gap-10">

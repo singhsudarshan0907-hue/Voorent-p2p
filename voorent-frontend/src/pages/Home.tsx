@@ -456,7 +456,7 @@ export default function Home() {
 
           {/* Brand + About */}
           <div className="max-w-xs">
-            <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>Voorent</p>
+            <p className="text-xl font-bold mb-1" style={{ color: '#2D6A4F' }}>FlexiAssets</p>
             <p className="mb-3">A new initiative by Voorent Pvt. Ltd.</p>
             <div className="text-xs leading-relaxed space-y-0.5">
               <p className="font-semibold text-[#555]">About the Founders</p>
