@@ -30,12 +30,12 @@ export default function TopNav() {
         <button onClick={() => navigate('/')} className="flex flex-col items-start flex-shrink-0">
           <svg viewBox="0 0 520 110" height="30" aria-label="FlexiAssets">
             <g transform="translate(6 5)">
-              <path d="M50 14 A36 36 0 0 1 86 50" fill="none" stroke="#0B4A80" strokeWidth="15" />
-              <path d="M86 36 L96 56 L74 56 Z" fill="#0B4A80" />
-              <path d="M50 86 A36 36 0 0 1 14 50" fill="none" stroke="#E4564E" strokeWidth="15" />
-              <path d="M14 64 L4 44 L26 44 Z" fill="#E4564E" />
+              <path d="M50 14 A36 36 0 0 1 86 50" fill="none" stroke="#0F5A46" strokeWidth="15" />
+              <path d="M86 74 L74 50 L98 50 Z" fill="#0F5A46" />
+              <path d="M50 86 A36 36 0 0 1 14 50" fill="none" stroke="#E8863C" strokeWidth="15" />
+              <path d="M14 26 L26 50 L2 50 Z" fill="#E8863C" />
             </g>
-            <text x="126" y="72" fontFamily="Montserrat, Arial, sans-serif" fontWeight="800" fontSize="58" letterSpacing="-1.6" fill="#0B4A80">Flexi<tspan fill="#E4564E">Assets</tspan></text>
+            <text x="126" y="72" fontFamily="Montserrat, Arial, sans-serif" fontWeight="800" fontSize="58" letterSpacing="-1.6" fill="#0F5A46">Flexi<tspan fill="#E8863C">Assets</tspan></text>
           </svg>
           <span className="text-[10px] font-medium" style={{ color: '#8A8A8A', marginTop: '1px' }}>A Voorent initiative</span>
         </button>
