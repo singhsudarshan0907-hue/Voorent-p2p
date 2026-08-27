@@ -23,10 +23,10 @@ api.interceptors.response.use(
 );
 
 // Auth
-export const sendOtp = (phone: string, email?: string) =>
+export const sendOtp = (phone?: string, email?: string) =>
   api.post('/auth/send-otp', { phone, email });
 
-export const verifyOtp = (phone: string, otp: string, email?: string) =>
+export const verifyOtp = (phone: string | undefined, otp: string, email?: string) =>
   api.post<{ id: string; role: string; name: string; phone: string; isNewUser: boolean }>('/auth/verify-otp', { phone, otp, email });
 
 // Image URL helper — images are stored on the backend server, not the frontend

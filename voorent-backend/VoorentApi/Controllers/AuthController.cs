@@ -19,28 +19,40 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
     [HttpPost("send-otp")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Phone) || req.Phone.Length != 10)
-            return BadRequest("Invalid phone number.");
+        // Two sign-in channels: WhatsApp (phone) is the default; email is the alternative.
+        // OtpToken.Phone stores the identifier — a 10-digit number OR an email address.
+        var phone = req.Phone?.Trim();
+        var email = req.Email?.Trim().ToLowerInvariant();
+        var emailMode = string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(email);
 
-        // (phone, email) is the unique identity. If this phone is already registered
-        // with a different email, reject early so the user sees "wrong phone/email"
-        // before an OTP is sent. New phones and email-less legacy accounts pass through.
-        var providedEmail = req.Email?.Trim().ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(providedEmail))
+        if (!emailMode)
         {
-            var existing = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
-            if (existing != null && !string.IsNullOrEmpty(existing.Email) && existing.Email != providedEmail)
-                return BadRequest("This phone number is registered with a different email. Please enter the correct email.");
+            if (string.IsNullOrWhiteSpace(phone) || phone.Length != 10)
+                return BadRequest("Enter a valid 10-digit WhatsApp number.");
+            // If this WhatsApp number is already tied to a different email, reject early.
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var existing = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone);
+                if (existing != null && !string.IsNullOrEmpty(existing.Email) && existing.Email != email)
+                    return BadRequest("This WhatsApp number is registered with a different email. Please enter the correct email.");
+            }
+        }
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(email!, @"^[^\s@]+@[^\s@]+\.[^\s@]+$"))
+        {
+            return BadRequest("Enter a valid email address.");
         }
 
-        // Invalidate old unused OTPs for this number
-        var old = await db.OtpTokens.Where(o => o.Phone == req.Phone && !o.Used).ToListAsync();
+        var identifier  = emailMode ? email! : phone!;
+        var emailTarget = string.IsNullOrWhiteSpace(email) ? null : email;   // where to also send an email OTP
+
+        // Invalidate old unused OTPs for this identifier
+        var old = await db.OtpTokens.Where(o => o.Phone == identifier && !o.Used).ToListAsync();
         old.ForEach(o => o.Used = true);
 
         var code = new Random().Next(100000, 999999).ToString();
         db.OtpTokens.Add(new OtpToken
         {
-            Phone    = req.Phone,
+            Phone    = identifier,
             Code     = code,
             ExpiresAt = DateTime.UtcNow.AddMinutes(10)
         });
@@ -51,11 +63,11 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         var templateName     = config["Msg91:WhatsAppTemplateName"];
         var integratedNumber = config["Msg91:WhatsAppIntegratedNumber"];
 
-        if (!string.IsNullOrEmpty(authKey) && !string.IsNullOrEmpty(templateName))
+        if (!emailMode && !string.IsNullOrEmpty(authKey) && !string.IsNullOrEmpty(templateName))
         {
             try
             {
-                var mobile = "91" + req.Phone;
+                var mobile = "91" + phone;
 
                 // MSG91 exact format from template code panel
                 var msgBody = new
@@ -111,14 +123,14 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
                 Console.WriteLine($"[MSG91] Exception: {ex.Message}");
             }
         }
-        else
+        else if (!emailMode)
         {
             // Dev fallback: OTP printed to console when MSG91 not configured
-            Console.WriteLine($"[DEV] OTP for {req.Phone}: {code}");
+            Console.WriteLine($"[DEV] OTP for {phone}: {code}");
         }
 
-        // Send OTP via email if provided
-        if (!string.IsNullOrWhiteSpace(req.Email))
+        // Send OTP via email — always in email mode, and as a backup when a phone user also gave an email
+        if (!string.IsNullOrEmpty(emailTarget))
         {
             try
             {
@@ -143,9 +155,9 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
                         Body       = $"Hello,\n\nYour Voorent login OTP is: {code}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\n— Team Voorent",
                         IsBodyHtml = false
                     };
-                    mail.To.Add(req.Email);
+                    mail.To.Add(emailTarget!);
                     await client2.SendMailAsync(mail);
-                    Console.WriteLine($"[Email] OTP sent to {req.Email}");
+                    Console.WriteLine($"[Email] OTP sent to {emailTarget}");
                 }
             }
             catch (Exception ex)
@@ -161,8 +173,14 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
     [HttpPost("verify-otp")]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest req)
     {
+        // Match the OTP to the channel used: WhatsApp number or email address.
+        var phone = req.Phone?.Trim();
+        var email = req.Email?.Trim().ToLowerInvariant();
+        var emailMode = string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(email);
+        var identifier = emailMode ? email! : phone!;
+
         var token = await db.OtpTokens
-            .Where(o => o.Phone == req.Phone && !o.Used && o.ExpiresAt > DateTime.UtcNow)
+            .Where(o => o.Phone == identifier && !o.Used && o.ExpiresAt > DateTime.UtcNow)
             .OrderByDescending(o => o.CreatedAt)
             .FirstOrDefaultAsync();
 
@@ -173,33 +191,30 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
 
         if (token.Code != req.Otp) { await db.SaveChangesAsync(); return Unauthorized("Incorrect OTP."); }
 
-        // Resolve account. Phone possession is proven by the OTP; email is the second
-        // half of the unique identity. (Don't consume the OTP until identity checks pass.)
-        var providedEmail = req.Email?.Trim().ToLowerInvariant();
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
+        // Resolve the account by whichever channel was used. (Don't consume the OTP until checks pass.)
+        User? user = emailMode
+            ? await db.Users.FirstOrDefaultAsync(u => u.Email == email)
+            : await db.Users.FirstOrDefaultAsync(u => u.Phone == phone);
         var isNewUser = user == null;
+
         if (user == null)
         {
-            // Brand-new phone → create the (phone, email) pair.
-            user = new User { Phone = req.Phone };
-            if (!string.IsNullOrWhiteSpace(providedEmail))
-                user.Email = providedEmail;
+            user = emailMode
+                ? new User { Email = email }                        // email sign-up; WhatsApp number added later
+                : new User { Phone = phone!, Email = string.IsNullOrWhiteSpace(email) ? null : email };
             db.Users.Add(user);
         }
-        else if (string.IsNullOrEmpty(user.Email))
+        else if (!emailMode)
         {
-            // Legacy account with no email on file → backfill it now.
-            if (!string.IsNullOrWhiteSpace(providedEmail))
+            // WhatsApp login: keep the (phone, email) identity consistent.
+            if (string.IsNullOrEmpty(user.Email))
             {
-                user.Email = providedEmail;
-                user.UpdatedAt = DateTime.UtcNow;
+                if (!string.IsNullOrWhiteSpace(email)) { user.Email = email; user.UpdatedAt = DateTime.UtcNow; }
             }
-        }
-        else if (!string.IsNullOrWhiteSpace(providedEmail) && user.Email != providedEmail)
-        {
-            // Phone is registered with a different email → reject without burning the OTP.
-            // Use 400 (not 401) so the SPA's 401 interceptor doesn't force a /login reload.
-            return BadRequest("This phone number is registered with a different email. Please enter the correct email.");
+            else if (!string.IsNullOrWhiteSpace(email) && user.Email != email)
+            {
+                return BadRequest("This WhatsApp number is registered with a different email. Please enter the correct email.");
+            }
         }
 
         token.Used = true;
@@ -299,5 +314,5 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
     }
 }
 
-public record SendOtpRequest(string Phone, string? Email);
-public record VerifyOtpRequest(string Phone, string Otp, string? Email);
+public record SendOtpRequest(string? Phone, string? Email);
+public record VerifyOtpRequest(string? Phone, string Otp, string? Email);

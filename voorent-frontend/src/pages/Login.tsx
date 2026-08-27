@@ -19,6 +19,7 @@ export default function Login() {
   const redirectParam = searchParams.get('redirect');
   const redirectTo = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/';
   const [step, setStep] = useState<Step>('phone');
+  const [channel, setChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [name, setName] = useState('');
@@ -29,14 +30,15 @@ export default function Login() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleSendOtp = async () => {
-    if (phone.length !== 10) { setError('Enter a valid 10-digit number'); return; }
-    if (!email.trim()) { setError('Email address is required'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Enter a valid email address'); return;
+    if (channel === 'whatsapp') {
+      if (phone.length !== 10) { setError('Enter a valid 10-digit WhatsApp number'); return; }
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address'); return; }
     }
     setLoading(true); setError('');
     try {
-      await sendOtp(phone, email.trim() || undefined);
+      if (channel === 'whatsapp') await sendOtp(phone, undefined);
+      else                        await sendOtp(undefined, email.trim());
       setStep('otp');
       startResendTimer();
     } catch (err) {
@@ -49,8 +51,10 @@ export default function Login() {
     if (code.length !== 6) { setError('Enter the 6-digit OTP'); return; }
     setLoading(true); setError('');
     try {
-      const res = await verifyOtp(phone, code, email.trim() || undefined);
-      setUserInfo({ id: res.data.id, role: res.data.role, name: res.data.name || '', phone });
+      const res = channel === 'whatsapp'
+        ? await verifyOtp(phone, code, undefined)
+        : await verifyOtp(undefined, code, email.trim());
+      setUserInfo({ id: res.data.id, role: res.data.role, name: res.data.name || '', phone: res.data.phone || phone });
       if (res.data.isNewUser) {
         setStep('profile');
       } else {
@@ -63,8 +67,7 @@ export default function Login() {
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { setError('Please enter your name'); return; }
-    if (!email.trim()) { setError('Please enter your email address'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address'); return; }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address'); return; }
     setLoading(true); setError('');
     try {
       await api.put('/users/profile', { name: name.trim(), email: email.trim() });
@@ -144,41 +147,54 @@ export default function Login() {
             {step === 'phone' && (
               <>
                 <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Welcome to FlexiAssets</h1>
-                <p className="text-[#555] mb-8">Enter your mobile number to continue</p>
+                <p className="text-[#555] mb-8">
+                  {channel === 'whatsapp' ? 'Sign in with your WhatsApp number' : 'Sign in with your email'}
+                </p>
 
-                <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Mobile Number <span className="text-[#D62828]">*</span></label>
-                <div className="flex items-center border-2 rounded-xl overflow-hidden mb-2 focus-within:border-[#2D6A4F] transition-colors"
-                  style={{ borderColor: error ? '#D62828' : '#E0E0E0' }}>
-                  <span className="px-4 text-sm font-semibold text-[#555] border-r border-[#E0E0E0] py-4 bg-[#F9F9F9]">+91</span>
-                  <input
-                    type="tel" inputMode="numeric" maxLength={10}
-                    placeholder="10-digit mobile number"
-                    value={phone}
-                    onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
-                    className="flex-1 px-4 py-4 text-sm outline-none bg-transparent"
-                  />
-                </div>
-                {error && !email.trim() && <p className="text-xs text-[#D62828] mb-2">{error}</p>}
-
-                <label className="block text-sm font-semibold text-[#1A1A1A] mb-2 mt-4">
-                  Email Address <span className="text-[#D62828]">*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
-                  className="w-full px-4 py-4 border-2 rounded-xl text-sm outline-none focus:border-[#2D6A4F] transition-colors mb-2"
-                  style={{ borderColor: error && email.trim() ? '#D62828' : '#E0E0E0' }}
-                />
+                {channel === 'whatsapp' ? (
+                  <>
+                    <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">WhatsApp Number <span className="text-[#D62828]">*</span></label>
+                    <div className="flex items-center border-2 rounded-xl overflow-hidden mb-1 focus-within:border-[#2D6A4F] transition-colors"
+                      style={{ borderColor: error ? '#D62828' : '#E0E0E0' }}>
+                      <span className="px-4 text-sm font-semibold text-[#555] border-r border-[#E0E0E0] py-4 bg-[#F9F9F9]">+91</span>
+                      <input
+                        type="tel" inputMode="numeric" maxLength={10}
+                        placeholder="10-digit WhatsApp number"
+                        value={phone}
+                        onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setError(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                        className="flex-1 px-4 py-4 text-sm outline-none bg-transparent"
+                      />
+                    </div>
+                    <p className="text-xs text-[#999] mb-2">📲 We'll send your login code on WhatsApp (not SMS).</p>
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">Email Address <span className="text-[#D62828]">*</span></label>
+                    <input
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                      className="w-full px-4 py-4 border-2 rounded-xl text-sm outline-none focus:border-[#2D6A4F] transition-colors mb-1"
+                      style={{ borderColor: error ? '#D62828' : '#E0E0E0' }}
+                    />
+                    <p className="text-xs text-[#999] mb-2">✉️ We'll email you a login code.</p>
+                  </>
+                )}
                 {error && <p className="text-xs text-[#D62828] mb-2">{error}</p>}
 
                 <button onClick={handleSendOtp} disabled={loading}
-                  className="w-full py-4 rounded-xl font-bold text-white text-base mt-4 disabled:opacity-60 hover:opacity-90 transition-opacity"
+                  className="w-full py-4 rounded-xl font-bold text-white text-base mt-3 disabled:opacity-60 hover:opacity-90 transition-opacity"
                   style={{ background: '#2D6A4F' }}>
                   {loading ? 'Sending OTP…' : 'Send OTP →'}
+                </button>
+
+                <button
+                  onClick={() => { setChannel(channel === 'whatsapp' ? 'email' : 'whatsapp'); setError(''); }}
+                  className="w-full text-center text-sm font-semibold mt-4" style={{ color: '#2D6A4F' }}>
+                  {channel === 'whatsapp' ? 'Prefer email? Sign in with email instead' : '← Use WhatsApp number instead'}
                 </button>
 
                 <div className="flex justify-center gap-8 mt-8 pt-8 border-t border-[#F0F0F0]">
@@ -201,7 +217,11 @@ export default function Login() {
                   ← Back
                 </button>
                 <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Enter OTP</h1>
-                <p className="text-[#555] mb-8">We sent a 6-digit code to +91-XXXXXX{phone.slice(-4)}{email.trim() ? ` and ${email.trim()}` : ''}</p>
+                <p className="text-[#555] mb-8">
+                  {channel === 'whatsapp'
+                    ? `We sent a 6-digit code on WhatsApp to +91-XXXXXX${phone.slice(-4)}`
+                    : `We sent a 6-digit code to ${email.trim()}`}
+                </p>
 
                 <div className="flex gap-3 justify-center mb-4">
                   {otp.map((digit, i) => (
@@ -252,7 +272,7 @@ export default function Login() {
                 </div>
 
                 <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Almost done!</h1>
-                <p className="text-[#555] mb-8">Tell us your name and email to complete your account.</p>
+                <p className="text-[#555] mb-8">Tell us your name to complete your account. Email is optional.</p>
 
                 <div className="space-y-4">
                   <div>
@@ -272,7 +292,7 @@ export default function Login() {
 
                   <div>
                     <label className="block text-sm font-semibold text-[#1A1A1A] mb-2">
-                      Email Address <span className="text-[#D62828]">*</span>
+                      Email Address <span className="text-[#999] font-normal">(optional)</span>
                     </label>
                     <input
                       type="email"
