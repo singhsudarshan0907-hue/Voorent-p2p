@@ -175,9 +175,9 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
     {
         // Match the OTP to the channel used: WhatsApp number or email address.
         var phone = req.Phone?.Trim();
-        var email = req.Email?.Trim().ToLowerInvariant();
-        var emailMode = string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(email);
-        var identifier = emailMode ? email! : phone!;
+        var reqEmail = req.Email?.Trim().ToLowerInvariant();
+        var emailMode = string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(reqEmail);
+        var identifier = emailMode ? reqEmail! : phone!;
 
         var token = await db.OtpTokens
             .Where(o => o.Phone == identifier && !o.Used && o.ExpiresAt > DateTime.UtcNow)
@@ -193,15 +193,15 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
 
         // Resolve the account by whichever channel was used. (Don't consume the OTP until checks pass.)
         User? user = emailMode
-            ? await db.Users.FirstOrDefaultAsync(u => u.Email == email)
+            ? await db.Users.FirstOrDefaultAsync(u => u.Email == reqEmail)
             : await db.Users.FirstOrDefaultAsync(u => u.Phone == phone);
         var isNewUser = user == null;
 
         if (user == null)
         {
             user = emailMode
-                ? new User { Email = email }                        // email sign-up; WhatsApp number added later
-                : new User { Phone = phone!, Email = string.IsNullOrWhiteSpace(email) ? null : email };
+                ? new User { Email = reqEmail }                     // email sign-up; WhatsApp number added later
+                : new User { Phone = phone!, Email = string.IsNullOrWhiteSpace(reqEmail) ? null : reqEmail };
             db.Users.Add(user);
         }
         else if (!emailMode)
@@ -209,9 +209,9 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
             // WhatsApp login: keep the (phone, email) identity consistent.
             if (string.IsNullOrEmpty(user.Email))
             {
-                if (!string.IsNullOrWhiteSpace(email)) { user.Email = email; user.UpdatedAt = DateTime.UtcNow; }
+                if (!string.IsNullOrWhiteSpace(reqEmail)) { user.Email = reqEmail; user.UpdatedAt = DateTime.UtcNow; }
             }
-            else if (!string.IsNullOrWhiteSpace(email) && user.Email != email)
+            else if (!string.IsNullOrWhiteSpace(reqEmail) && user.Email != reqEmail)
             {
                 return BadRequest("This WhatsApp number is registered with a different email. Please enter the correct email.");
             }
