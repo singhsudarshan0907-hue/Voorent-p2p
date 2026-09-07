@@ -16,6 +16,16 @@ namespace VoorentApi.Controllers;
 [Route("api/auth")]
 public class AuthController(AppDbContext db, IConfiguration config, IHttpClientFactory http, EmailService email) : ControllerBase
 {
+    // OtpToken.Phone is sized for phone numbers, so we can't store a raw email there.
+    // For email sign-in we store a short, fixed 10-char key derived from the email
+    // (deterministic, non-numeric so it never collides with a real 10-digit phone).
+    private static string OtpIdentifier(bool emailMode, string? phone, string? email)
+    {
+        if (!emailMode) return phone!;
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(email!));
+        return "e" + Convert.ToHexString(bytes)[..9].ToLowerInvariant();
+    }
+
     [HttpPost("send-otp")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
     {
@@ -42,7 +52,7 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
             return BadRequest("Enter a valid email address.");
         }
 
-        var identifier  = emailMode ? email! : phone!;
+        var identifier  = OtpIdentifier(emailMode, phone, email);
         var emailTarget = string.IsNullOrWhiteSpace(email) ? null : email;   // where to also send an email OTP
 
         // Invalidate old unused OTPs for this identifier
@@ -177,7 +187,7 @@ public class AuthController(AppDbContext db, IConfiguration config, IHttpClientF
         var phone = req.Phone?.Trim();
         var reqEmail = req.Email?.Trim().ToLowerInvariant();
         var emailMode = string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(reqEmail);
-        var identifier = emailMode ? reqEmail! : phone!;
+        var identifier = OtpIdentifier(emailMode, phone, reqEmail);
 
         var token = await db.OtpTokens
             .Where(o => o.Phone == identifier && !o.Used && o.ExpiresAt > DateTime.UtcNow)
